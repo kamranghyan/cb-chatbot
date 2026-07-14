@@ -38,23 +38,29 @@
       <p>Try typing <code>hello</code>, <code>pricing</code>, or <code>error</code> (to see error handling).</p>
     </div>
 
-    <script src="../script-embed/embed-standalone.js"></script>
+    <div id="chat-root"></div>
+
+    <script src="./embed-standalone.js"></script>
     <script>
-      ChatWidgetKit.init({
-        target: '#chat-root',
-        config: {
-          botName: 'HTTP Bot',
-          welcomeMessage: 'Ask me something — this goes over real HTTP now.',
-          startOpen: true,
-          showTimestamps: true,
-          protocol: {
-            type: 'http',
-            endpoint: 'http://localhost:4000/chat'
-            // headers: { Authorization: 'Bearer <token>' }  // add auth here if needed
+      document.addEventListener('DOMContentLoaded', () => {
+        ChatWidgetKit.init({
+          target: '#chat-root',
+          config: {
+            botName: 'Netflix HTTP Bot',
+            botAvatarUrl: './netflix-logo.jpg',
+            welcomeMessage: 'Ask me something — this goes over real HTTP now.',
+            startOpen: true,
+            showTimestamps: true,
+            protocol: {
+              type: 'http',
+              endpoint: 'http://localhost:4000/chat'
+              // headers: { Authorization: 'Bearer <token>' }  // add auth here if needed
+            }
           }
-        }
+        })
       })
     </script>
-    <div id="chat-root"></div>
   </body>
 </html>
+
+// hemlo

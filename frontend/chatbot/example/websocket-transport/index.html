@@ -45,22 +45,26 @@
       </p>
     </div>
 
-    <script src="../script-embed/embed-standalone.js"></script>
+    <div id="chat-root"></div>
+
+    <script src="./embed-standalone.js"></script>
     <script>
-      ChatWidgetKit.init({
-        target: '#chat-root',
-        config: {
-          botName: 'WebSocket Bot',
-          welcomeMessage: 'Connected over a persistent WebSocket — try me.',
-          startOpen: true,
-          showTimestamps: true,
-          protocol: {
-            type: 'websocket',
-            url: 'ws://localhost:4001'
+      document.addEventListener('DOMContentLoaded', () => {
+        ChatWidgetKit.init({
+          target: '#chat-root',
+          config: {
+            botName: 'Netflix WebSocket Bot',
+            botAvatarUrl: './netflix-logo.jpg',
+            welcomeMessage: 'Connected over a persistent WebSocket — try me.',
+            startOpen: true,
+            showTimestamps: true,
+            protocol: {
+              type: 'websocket',
+              url: 'ws://localhost:4001'
+            }
           }
-        }
+        })
       })
     </script>
-    <div id="chat-root"></div>
   </body>
-</html>
+</html> 

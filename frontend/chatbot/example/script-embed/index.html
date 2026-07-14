@@ -35,26 +35,29 @@
       </p>
     </div>
 
+    <div id="chat-root"></div>
+
     <script src="./embed-standalone.js"></script>
     <script>
-      ChatWidgetKit.init({
-        target: '#chat-root',
-        config: {
-          botName: 'Acme Support',
-          welcomeMessage: "Hey! I'm Acme's support bot — ask away.",
-          placeholderText: 'Type your question…',
-          position: 'bottom-left',
-          showTimestamps: true,
-          startOpen: true,
-          theme: {
-            colorScheme: 'dark',
-            accentColor: '#F97362', // custom brand color, overrides default indigo
-            borderRadius: '10px'
-          },
-          protocol: { type: 'mock' }
-        }
+      document.addEventListener('DOMContentLoaded', () => {
+        ChatWidgetKit.init({
+          target: '#chat-root',
+          config: {
+            botName: 'Acme Support',
+            welcomeMessage: "Hey! I'm Acme's support bot — ask away.",
+            placeholderText: 'Type your question…',
+            position: 'bottom-left',
+            showTimestamps: true,
+            startOpen: true,
+            theme: {
+              colorScheme: 'dark',
+              accentColor: '#F97362', // custom brand color, overrides default indigo
+              borderRadius: '10px'
+            },
+            protocol: { type: 'mock' }
+          }
+        })
       })
     </script>
-    <div id="chat-root"></div>
   </body>
 </html>
