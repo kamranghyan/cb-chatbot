@@ -1,6 +1,10 @@
 import React, { useState } from 'react'
 import { ChatWidget } from './components/ChatWidget'
 import type { ChatWidgetConfig } from './core/types'
+// App.tsx
+import netflixLogo from '../public/assets/logos-img/netflix-logo.jpg' // image import karein
+
+
 
 // ============================================================================
 // DEV PLAYGROUND — this file is only used by `npm run dev` to visually
@@ -9,7 +13,8 @@ import type { ChatWidgetConfig } from './core/types'
 // ============================================================================
 
 const baseConfig: ChatWidgetConfig = {
-  botName: 'Demo Assistant',
+  botName: 'Netflix Assistant',
+  botAvatarUrl: netflixLogo,
   welcomeMessage: 'Hi! How can I help?',
   placeholderText: 'Ask me something…',
   position: 'bottom-right',
