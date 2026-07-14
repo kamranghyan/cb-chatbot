@@ -1,1 +1,1 @@
-# cb-chabot
+# cb-chatbot
