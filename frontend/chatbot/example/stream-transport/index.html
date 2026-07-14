@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stream (SSE) Transport Example</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #f0f1f5;
+        color: #1b1d28;
+      }
+      .page {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+      code {
+        background: #e4e4ee;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      ol {
+        line-height: 1.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Stream transport — SSE, OpenAI-style token streaming</h1>
+      <p>
+        This widget is wired to <code>protocol: { type: 'stream' }</code>. The reply
+        streams in token-by-token over Server-Sent Events — the same framing
+        OpenAI/Anthropic-style LLM APIs use.
+      </p>
+      <ol>
+        <li>Run <code>node server.js</code> in this folder (starts on port 4002)</li>
+        <li>Serve this page (e.g. <code>npx serve .</code> from this folder)</li>
+        <li>Open it and chat — watch the reply type itself out live</li>
+      </ol>
+      <p>Try the "Stop generating" button mid-reply to test cancellation.</p>
+    </div>
+
+    <script src="../script-embed/embed-standalone.js"></script>
+    <script>
+      ChatWidgetKit.init({
+        target: '#chat-root',
+        config: {
+          botName: 'Stream Bot',
+          welcomeMessage: 'Ask me something — watch this stream in token by token.',
+          startOpen: true,
+          showTimestamps: true,
+          protocol: {
+            type: 'stream',
+            endpoint: 'http://localhost:4002/chat/stream',
+            format: 'sse' // default; use 'text' for raw unframed chunk streaming
+          }
+        }
+      })
+    </script>
+    <div id="chat-root"></div>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "websocket-transport-example",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}

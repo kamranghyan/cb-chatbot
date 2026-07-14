@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Script Embed — Custom Theme Example</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #0f1115;
+        color: #eceef5;
+      }
+      .page {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+      code {
+        background: #1e212b;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Script embed — custom theme + config</h1>
+      <p>
+        Same <code>embed-standalone.js</code> file as the main demo, but this page
+        overrides the theme (dark, custom accent color) and positions the widget
+        bottom-left. This shows how a host site fully re-skins the widget without
+        touching any component code — everything comes from the <code>config</code>
+        object.
+      </p>
+    </div>
+
+    <script src="./embed-standalone.js"></script>
+    <script>
+      ChatWidgetKit.init({
+        target: '#chat-root',
+        config: {
+          botName: 'Acme Support',
+          welcomeMessage: "Hey! I'm Acme's support bot — ask away.",
+          placeholderText: 'Type your question…',
+          position: 'bottom-left',
+          showTimestamps: true,
+          startOpen: true,
+          theme: {
+            colorScheme: 'dark',
+            accentColor: '#F97362', // custom brand color, overrides default indigo
+            borderRadius: '10px'
+          },
+          protocol: { type: 'mock' }
+        }
+      })
+    </script>
+    <div id="chat-root"></div>
+  </body>
+</html>

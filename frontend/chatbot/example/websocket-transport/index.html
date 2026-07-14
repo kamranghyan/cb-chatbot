@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebSocket Transport Example</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #f0f1f5;
+        color: #1b1d28;
+      }
+      .page {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+      code {
+        background: #e4e4ee;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      ol {
+        line-height: 1.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>WebSocket transport — persistent connection + streaming</h1>
+      <p>
+        This widget is wired to <code>protocol: { type: 'websocket' }</code>. Replies
+        stream in word-by-word over a real, persistent socket connection (not HTTP).
+      </p>
+      <ol>
+        <li><code>cd example/websocket-transport && npm install</code> (first time only)</li>
+        <li>Run <code>node server.js</code> (starts on port 4001)</li>
+        <li>Serve this page (e.g. <code>npx serve .</code> from this folder)</li>
+        <li>Open it and chat — watch the status dot go Online, and replies stream in</li>
+      </ol>
+      <p>
+        Try disconnecting the server (Ctrl+C) while chatting, then restarting it — the
+        widget auto-reconnects with backoff and the status dot reflects each state.
+      </p>
+    </div>
+
+    <script src="../script-embed/embed-standalone.js"></script>
+    <script>
+      ChatWidgetKit.init({
+        target: '#chat-root',
+        config: {
+          botName: 'WebSocket Bot',
+          welcomeMessage: 'Connected over a persistent WebSocket — try me.',
+          startOpen: true,
+          showTimestamps: true,
+          protocol: {
+            type: 'websocket',
+            url: 'ws://localhost:4001'
+          }
+        }
+      })
+    </script>
+    <div id="chat-root"></div>
+  </body>
+</html>

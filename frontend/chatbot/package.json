@@ -1,0 +1,42 @@
+{
+  "name": "react-chat-widget-kit",
+  "version": "0.1.0",
+  "description": "Themeable, configurable, protocol-agnostic embeddable chat widget for React and any website.",
+  "type": "module",
+  "main": "dist/react-chat-widget-kit.umd.cjs",
+  "module": "dist/react-chat-widget-kit.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/react-chat-widget-kit.js",
+      "require": "./dist/react-chat-widget-kit.umd.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "dev": "vite",
+    "build:demo": "vite build",
+    "build:lib": "vite build --config vite.lib.config.ts && npm run build:embed && npm run build:webcomponent && tsc --emitDeclarationOnly --project tsconfig.build.json",
+    "build:embed": "vite build --config vite.embed.config.ts",
+    "build:webcomponent": "vite build --config vite.webcomponent.config.ts",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
+    "vite-plugin-dts": "^4.0.3"
+  }
+}
