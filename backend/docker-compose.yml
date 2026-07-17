@@ -18,7 +18,7 @@ services:
         condition: service_started
     volumes:
       - ./:/app
-
+      - ~/.aws:/root/.aws:ro
   postgres:
     image: pgvector/pgvector:pg16
     container_name: rag-postgres

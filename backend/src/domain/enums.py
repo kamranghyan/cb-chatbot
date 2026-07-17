@@ -8,6 +8,19 @@ class SecurityLevel(str, Enum):
     PRIVATE = "private"
     SECRET = "secret"
 
+    def allowed_levels(self) -> list[str]:
+        """Clearance hierarchy: secret wala private+public bhi dekh sakta hai.
+        Old rag_query.py mein yeh logic inline bikhri hui thi."""
+        order = [SecurityLevel.PUBLIC, SecurityLevel.PRIVATE, SecurityLevel.SECRET]
+        return [lvl.value for lvl in order[: order.index(self) + 1]]
+
+
+class IngestionStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
 
 class Channel(str, Enum):
     Web = "web"

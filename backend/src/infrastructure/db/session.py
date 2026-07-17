@@ -42,6 +42,13 @@ async def dispose_engine() -> None:
         _session_factory = None
 
 
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """WS jese long-lived contexts ke liye — har message apna session banaye."""
+    if _session_factory is None:
+        init_engine()
+    return _session_factory  # type: ignore[return-value]
+
+
 async def get_db() -> AsyncIterator[AsyncSession]:
     """FastAPI dependency: async with get_db as session."""
     if _session_factory is None:

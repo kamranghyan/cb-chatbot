@@ -53,3 +53,30 @@ class FeedbackIn(BaseModel):
 
 class DevTokenIn(BaseModel):
     email: str = "dev@local.test"
+
+
+class ChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=4000)
+    external_chat_id: str | None = None   # None = naya chat
+    is_regenerate: bool = False
+
+
+class SourceOut(BaseModel):
+    content: str
+    metadata: dict | None = None
+    score: float | None = None
+
+
+class ChatResponse(BaseModel):
+    external_chat_id: str
+    external_conv_id: str
+    title: str
+    answer: str | None
+    response_time: float | None
+    sources: list[SourceOut] = []
+
+
+class IssueIn(BaseModel):
+    category: CategoryEnum = CategoryEnum.ISSUES
+    sub_category: SubCategoryEnum | None = None
+    description: str | None = Field(default=None, max_length=5000)
