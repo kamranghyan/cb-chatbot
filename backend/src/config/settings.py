@@ -57,13 +57,17 @@ class Settings(BaseSettings):
     EMBED_PROVIDER: str = "bedrock_cohere"
     EMBED_MODEL_ID: str = "cohere.embed-multilingual-v3"
     VECTORSTORE_PROVIDER: str = "pgvector"
-    EMBEDDINGS_COLLECTION: str = "cb-netflix_embeddings"
+    EMBEDDINGS_COLLECTION: str = "starzplay_embeddings"
 
+    CHUNKER_PROVIDER: str = "recursive"
     MAX_CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
 
     ENABLE_CHAT_MEMORY: bool = True
     CHAT_HISTORY_NO_OF_MSGS: int = 5
+    ENABLE_GUARDRAILS: bool = True
+    ENABLE_DEPARTMENT_FILTER: bool = False
+    RETRIEVAL_TOP_K: int = 4
 
     # ---- Bedrock KB path ----
     KNOWLEDGE_BASE_ID: str = ""
@@ -76,10 +80,21 @@ class Settings(BaseSettings):
     # ---- LangSmith ----
     LANGSMITH_TRACING: bool = False
     LANGSMITH_API_KEY: str = ""
-    LANGSMITH_PROJECT: str = "cb-netflix-local"
+    LANGSMITH_PROJECT: str = "starzplay-local"
+
+    # ---- Hardening ----
+    CORS_ORIGINS: str = "*"              # comma-separated; prod pe explicit list
+    RATE_LIMIT_PER_MINUTE: int = 20      # 0 = disabled
 
     # ---- Integrations ----
     SENDGRID_API_KEY: str = ""
+    NOTIFICATION_FROM_EMAIL: str = "noreply@example.com"
+    SUPPORT_EMAIL: str = ""              # issue notifications yahan jati hain
+    SALESFORCE_DOMAIN: str = "https://login.salesforce.com"
+    SALESFORCE_CLIENT_ID: str = ""
+    SALESFORCE_CLIENT_SECRET: str = ""
+    SALESFORCE_USERNAME: str = ""
+    SALESFORCE_PASSWORD: str = ""
 
     # ---- Computed ----
     @computed_field  # type: ignore[prop-decorator]

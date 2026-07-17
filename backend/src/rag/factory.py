@@ -23,10 +23,21 @@ from src.rag.embed.base import EmbeddingProvider, get_embedding_provider
 from src.rag.llm.base import LLMProvider, get_llm_provider
 from src.rag.vectorstore.base import VectorStoreProvider, get_vectorstore_provider
 
-# Phase 2: yahan providers import honge taake register ho jayein, e.g.
-# import src.rag.llm.providers.bedrock  # noqa: F401
-# import src.rag.embed.providers.bedrock_cohere  # noqa: F401
-# import src.rag.vectorstore.providers.pgvector  # noqa: F401
+# Providers import = registration (decorator side-effect). Heavy SDK imports
+# lazy rehte hain kyunki har provider apne get_* call pe hi client banata hai.
+import src.rag.llm.providers.bedrock  # noqa: E402, F401
+import src.rag.llm.providers.sagemaker  # noqa: E402, F401
+import src.rag.llm.providers.ollama  # noqa: E402, F401
+import src.rag.llm.providers.fake  # noqa: E402, F401
+import src.rag.embed.providers.bedrock  # noqa: E402, F401
+import src.rag.embed.providers.ollama  # noqa: E402, F401
+import src.rag.embed.providers.fake  # noqa: E402, F401
+import src.rag.vectorstore.providers.pgvector  # noqa: E402, F401
+import src.rag.vectorstore.providers.bedrock_kb  # noqa: E402, F401
+import src.rag.chunk.providers.recursive  # noqa: E402, F401
+import src.rag.ingest.providers.text  # noqa: E402, F401
+import src.rag.ingest.providers.file  # noqa: E402, F401
+import src.rag.ingest.providers.s3  # noqa: E402, F401
 
 
 @dataclass

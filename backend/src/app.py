@@ -16,6 +16,7 @@ from src.api.v1 import api_router
 from src.config import get_settings
 from src.core.exceptions import AppException
 from src.core.logging import setup_logging
+from src.infrastructure.cache.redis import close_redis, init_redis
 from src.infrastructure.db.session import dispose_engine, init_engine
 
 
@@ -32,7 +33,9 @@ def _configure_langsmith() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_engine()
+    init_redis()
     yield
+    await close_redis()
     await dispose_engine()
 
 
@@ -42,17 +45,18 @@ def create_app() -> FastAPI:
     _configure_langsmith()
 
     app = FastAPI(
-        title="Netflix RAG API",
+        title="StarzPlay RAG API",
         version="2.0.0",
         docs_url=None if settings.ENV == "prod" else "/docs",
         redoc_url=None if settings.ENV == "prod" else "/redoc",
         lifespan=lifespan,
     )
 
+    origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # TODO Phase 6: env-driven allowlist
-        allow_credentials=True,
+        allow_origins=origins,
+        allow_credentials="*" not in origins,  # wildcard + credentials invalid combo hai
         allow_methods=["*"],
         allow_headers=["*"],
     )

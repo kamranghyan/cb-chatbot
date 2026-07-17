@@ -1,0 +1,11 @@
+Given the following conversation history and a follow-up question, rephrase the
+follow-up question to be a standalone question that contains all needed context.
+Return ONLY the standalone question, nothing else.
+
+<history>
+{history}
+</history>
+
+Follow-up question: {question}
+
+Standalone question:
