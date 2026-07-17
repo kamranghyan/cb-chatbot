@@ -1,0 +1,45 @@
+# Local stack: app + pgvector Postgres + Redis
+# Old compose mein Postgres tha hi nahi (host pe manual chahiye tha) — ab included.
+services:
+  backend:
+    build: .
+    container_name: rag-backend
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      # container ke andar hostnames override (baaki .env se)
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./:/app
+      - ~/.aws:/root/.aws:ro
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: rag-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-ragdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: rag-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:

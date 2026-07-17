@@ -1,0 +1,21 @@
+{
+  "_comment": "field_name (Settings class ka attribute) -> SSM parameter name. Sirf woh fields yahan rakho jo AWS envs mein SSM se aani chahiye. Apne existing SSM param names yahan paste karo.",
+  "dev": {
+    "DB_HOST": "/cb-netflix/dev/db/host",
+    "DB_PORT": "/cb-netflix/dev/db/port",
+    "DB_USER": "/cb-netflix/dev/db/user",
+    "DB_PASSWORD": "/cb-netflix/dev/db/password",
+    "DB_NAME": "/cb-netflix/dev/db/database",
+    "REDIS_HOST": "/cb-netflix/dev/redis/host",
+    "JWT_SECRET_KEY": "/cb-netflix/dev/jwt/secret",
+    "KNOWLEDGE_BASE_ID": "/cb-netflix/dev/kb/id",
+    "KB_DATASOURCE_ID": "/cb-netflix/dev/kb/datasource_id",
+    "S3_BUCKET": "/cb-netflix/dev/s3/bucket",
+    "EMBEDDINGS_COLLECTION": "/cb-netflix/dev/embeddings/collection",
+    "SENDGRID_API_KEY": "/cb-netflix/dev/sendgrid/api_key",
+    "LANGSMITH_API_KEY": "/cb-netflix/dev/langsmith/api_key"
+  },
+  "qa": {},
+  "stage": {},
+  "prod": {}
+}
