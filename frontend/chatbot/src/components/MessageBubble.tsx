@@ -21,6 +21,18 @@ export function MessageBubble({ message, showTimestamp }: MessageBubbleProps) {
         {message.status === 'error' && (
           <div className="ccw-error-text">{message.error ?? 'Something went wrong'}</div>
         )}
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <div className="ccw-sources">
+            <span className="ccw-sources-label">Sources</span>
+            <ul className="ccw-sources-list">
+              {message.sources.map((s, i) => (
+                <li key={i} className="ccw-source-chip" title={s.content}>
+                  {truncate(s.content, 60)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       {showTimestamp && (
         <span className="ccw-timestamp">
@@ -32,4 +44,8 @@ export function MessageBubble({ message, showTimestamp }: MessageBubbleProps) {
       )}
     </div>
   )
+}
+
+function truncate(text: string, n: number): string {
+  return text.length > n ? `${text.slice(0, n)}…` : text
 }

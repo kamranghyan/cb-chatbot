@@ -39,3 +39,15 @@ if (ENV.USE_MOCK_API && typeof window !== 'undefined') {
 export const uploadClient: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'text/plain' },
 });
+
+/**
+ * ALWAYS-MOCK client for domains this backend does not implement
+ * (Users, Roles — see core/api/endpoints.ts). Used regardless of
+ * ENV.USE_MOCK_API so these screens keep working for demo purposes
+ * instead of throwing 404s against the real backend. Swap this to
+ * `apiClient` once real /users and /roles endpoints exist.
+ */
+export const mockOnlyClient: AxiosInstance = axios.create({
+  baseURL: 'http://mock.local',
+  adapter: mockAdapter,
+});
