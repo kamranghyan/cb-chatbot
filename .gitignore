@@ -1,0 +1,18 @@
+# Chatbot
+frontend/chatbot/node_modules/
+frontend/chatbot/.next/
+frontend/chatbot/build/
+frontend/chatbot/.env*
+
+# Dashboard
+frontend/dashboard/node_modules/
+frontend/dashboard/.next/
+frontend/dashboard/build/
+frontend/dashboard/.env*
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

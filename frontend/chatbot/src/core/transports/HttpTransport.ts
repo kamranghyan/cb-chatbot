@@ -2,33 +2,41 @@ import type { ChatTransport, TransportEvents, ChatMessage } from '../types'
 import { generateId } from './Transport'
 
 export interface HttpTransportConfig {
-  /** Your backend endpoint, e.g. https://api.yourapp.com/chat */
+  /** RAG backend base, e.g. https://api.yourapp.com/api/v1 — POST {base}/chat is called */
   endpoint: string
-  /** Extra headers — commonly used for auth: { Authorization: 'Bearer ...' } */
+  /** Must include Authorization: 'Bearer <JWT>' — the host app supplies this (see README). */
   headers?: Record<string, string>
   /** Abort the request if the server takes longer than this. Default 30s. */
   timeoutMs?: number
 }
 
 /**
- * HTTP transport — one request in, one full reply back. This is the
- * simplest protocol: no persistent connection, no token-by-token
- * streaming. Best fit for backends that call an LLM server-side and
- * return the finished answer.
+ * HTTP transport for the RAG Chatbot Backend v2 — one request in, one full
+ * reply back (no token-by-token streaming; use StreamTransport for that).
  *
- * Contract your backend must implement:
+ * Exact backend contract (src/api/v1/chat.py -> POST {endpoint}):
  *
- *   POST {endpoint}
- *   Body:    { "message": "user text", "history": [{ role, content }] }
- *   Success: 200 { "reply": "assistant text" }   (or { "message": "..." })
- *   Error:   any non-2xx status — a JSON `{ "error": "..." }` body is read
- *            if present, otherwise the HTTP status code is shown.
+ *   Request:  { "question": string, "external_chat_id": string|null, "is_regenerate": boolean }
+ *   Response: { "external_chat_id", "external_conv_id", "title",
+ *               "answer": string|null, "response_time", "sources": [{content, metadata, score}] }
+ *   Auth:     Authorization: Bearer <JWT> header (required — RequireUser dependency)
+ *   Errors:   429 = rate limited (RATE_LIMIT_PER_MINUTE), 401/403 = bad/expired token,
+ *             422 = validation error (FastAPI `detail` array)
+ *
+ * `answer: null` happens when the guardrail blocks the topic or the pipeline
+ * genuinely has nothing to say — we render a fallback message rather than
+ * leaving an empty bubble.
+ *
+ * This transport remembers `external_chat_id` internally after the first
+ * reply so every following message continues the same backend chat/thread —
+ * the widget consumer never has to manage that.
  */
 export class HttpTransport implements ChatTransport {
   readonly type = 'http' as const
   private config: HttpTransportConfig
   private events: TransportEvents
   private controller: AbortController | null = null
+  private externalChatId: string | null = null
 
   constructor(config: HttpTransportConfig, events: TransportEvents) {
     this.config = config
@@ -51,10 +59,12 @@ export class HttpTransport implements ChatTransport {
     this.controller?.abort()
   }
 
-  async sendMessage(text: string, history: ChatMessage[]) {
-    // 1. Optimistically show the user's own message immediately — every
-    //    other transport does this too, so the UI behaves identically
-    //    regardless of which protocol is active.
+  /** Resets the conversation — next sendMessage() starts a brand-new backend chat. */
+  resetConversation() {
+    this.externalChatId = null
+  }
+
+  async sendMessage(text: string) {
     const userMessage: ChatMessage = {
       id: generateId(),
       role: 'user',
@@ -64,8 +74,6 @@ export class HttpTransport implements ChatTransport {
     }
     this.events.onMessage(userMessage)
 
-    // 2. Fire the request with a timeout guard so a hung backend doesn't
-    //    leave the UI stuck on "typing…" forever.
     this.controller = new AbortController()
     const timeoutMs = this.config.timeoutMs ?? 30000
     const timeoutId = setTimeout(() => this.controller?.abort(), timeoutMs)
@@ -77,27 +85,31 @@ export class HttpTransport implements ChatTransport {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...this.config.headers },
         body: JSON.stringify({
-          message: text,
-          // Trim internal fields the backend doesn't need
-          history: history.map((m) => ({ role: m.role, content: m.content }))
+          question: text,
+          external_chat_id: this.externalChatId,
+          is_regenerate: false
         }),
         signal: this.controller.signal
       })
 
       if (!res.ok) {
-        const errBody = await safeReadJson(res)
-        throw new Error(errBody?.error ?? `Request failed with status ${res.status}`)
+        throw new Error(await extractHttpError(res))
       }
 
       const data = await safeReadJson(res)
-      const replyText = data?.reply ?? data?.message ?? ''
+      this.externalChatId = data?.external_chat_id ?? this.externalChatId
+
+      const sources = Array.isArray(data?.sources)
+        ? data.sources.map((s: any) => ({ content: s.content ?? '', score: s.score ?? null }))
+        : undefined
 
       const assistantMessage: ChatMessage = {
         id: generateId(),
         role: 'assistant',
-        content: replyText,
+        content: data?.answer ?? "I don't have an answer for that yet.",
         status: 'complete',
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        sources
       }
       this.events.onMessage(assistantMessage)
       this.events.onConnectionChange('connected')
@@ -111,6 +123,16 @@ export class HttpTransport implements ChatTransport {
       clearTimeout(timeoutId)
     }
   }
+}
+
+/** FastAPI error bodies are either {"detail": "msg"} or {"detail": [{"msg": "...", "loc":[...]}]}. */
+async function extractHttpError(res: Response): Promise<string> {
+  const body = await safeReadJson(res)
+  if (res.status === 429) return 'Too many messages — please wait a moment and try again.'
+  if (res.status === 401 || res.status === 403) return 'Your session has expired. Please refresh and try again.'
+  if (typeof body?.detail === 'string') return body.detail
+  if (Array.isArray(body?.detail) && body.detail[0]?.msg) return body.detail[0].msg
+  return `Request failed with status ${res.status}`
 }
 
 async function safeReadJson(res: Response): Promise<any | null> {

@@ -1,50 +1,53 @@
-import type { ChatTransport, TransportEvents, ChatMessage } from '../types'
+import type { ChatTransport, TransportEvents, ChatMessage, ChatMessageSource } from '../types'
 import { generateId } from './Transport'
 
 export interface StreamTransportConfig {
-  /** Your streaming endpoint, e.g. https://api.yourapp.com/chat/stream */
+  /** RAG backend base, e.g. https://api.yourapp.com/api/v1 — POST {base}/chat/stream is called */
   endpoint: string
+  /** Must include Authorization: 'Bearer <JWT>' — the host app supplies this (see README). */
   headers?: Record<string, string>
-  /**
-   * 'sse'  — Server-Sent Events framing: lines like `data: {...}\n\n`,
-   *          terminated by `data: [DONE]`. This is what OpenAI/Anthropic-
-   *          style APIs use. DEFAULT.
-   * 'text' — raw text chunks with no framing at all — the response body
-   *          itself IS the token stream. Simpler for custom backends.
-   */
-  format?: 'sse' | 'text'
   /** Abort if no data arrives for this long. Default 30s. */
   timeoutMs?: number
 }
 
 /**
- * Stream transport — a single HTTP request whose response body is read
- * incrementally as it arrives, for token-by-token LLM output. No persistent
- * connection (unlike WebSocket), but still feels "live" to the user.
+ * SSE stream transport for the RAG Chatbot Backend v2 (src/api/v1/chat.py
+ * -> POST {endpoint}/stream, sse_starlette EventSourceResponse).
  *
- * Contract your backend must implement — SSE mode (default):
+ * IMPORTANT: this is POST-based SSE (question goes in the body), NOT the
+ * browser's native EventSource (which is GET-only) — so we use fetch() +
+ * a manual ReadableStream reader, per the backend's own docs.
  *
- *   POST {endpoint}
- *   Body: { "message": "...", "history": [{ role, content }] }
- *   Response: Content-Type: text/event-stream, then repeated:
+ * Wire format — named-event frames separated by a blank line:
  *
- *     data: {"delta":"Hello"}
- *     data: {"delta":" there"}
- *     data: [DONE]
+ *   event: meta
+ *   data: {"external_chat_id": "...", "title": "..."}
  *
- *   Also understands the OpenAI-compatible shape
- *   `data: {"choices":[{"delta":{"content":"Hello"}}]}` automatically, and
- *   falls back to treating the payload as a plain text delta if it isn't
- *   JSON at all.
+ *   event: token
+ *   data: {"text": "..."}          (repeated, one per generated chunk)
  *
- * 'text' mode: the raw response body bytes ARE the reply, decoded and
- * forwarded to the UI chunk by chunk with no parsing.
+ *   event: sources
+ *   data: [{"content": "...", "metadata": {...}, "score": 0.9}, ...]
+ *
+ *   event: done
+ *   data: {"external_conv_id": "...", "response_time": 1.23}
+ *
+ *   event: error
+ *   data: {"message": "..."}
+ *
+ * CONFIRMED from src/api/v1/chat.py. The exact key names *inside* each
+ * `data` payload (e.g. whether tokens use "text" vs "delta") come from
+ * RagChatService.chat_stream(), which wasn't in the files shared yet — this
+ * parser reads `text`/`delta`/`content` for tokens and `external_chat_id`/
+ * `chat_id` for meta as a defensive fallback so it keeps working either
+ * way. Share that file to lock the exact names down and simplify this.
  */
 export class StreamTransport implements ChatTransport {
   readonly type = 'stream' as const
   private config: StreamTransportConfig
   private events: TransportEvents
   private controller: AbortController | null = null
+  private externalChatId: string | null = null
 
   constructor(config: StreamTransportConfig, events: TransportEvents) {
     this.config = config
@@ -52,7 +55,6 @@ export class StreamTransport implements ChatTransport {
   }
 
   connect() {
-    // Stateless like HTTP — no persistent connection to open.
     this.events.onConnectionChange('connected')
   }
 
@@ -64,7 +66,12 @@ export class StreamTransport implements ChatTransport {
     this.controller?.abort()
   }
 
-  async sendMessage(text: string, history: ChatMessage[]) {
+  /** Resets the conversation — next sendMessage() starts a brand-new backend chat. */
+  resetConversation() {
+    this.externalChatId = null
+  }
+
+  async sendMessage(text: string) {
     const userMessage: ChatMessage = {
       id: generateId(),
       role: 'user',
@@ -100,56 +107,64 @@ export class StreamTransport implements ChatTransport {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...this.config.headers },
         body: JSON.stringify({
-          message: text,
-          history: history.map((m) => ({ role: m.role, content: m.content }))
+          question: text,
+          external_chat_id: this.externalChatId,
+          is_regenerate: false
         }),
         signal: this.controller.signal
       })
 
       if (!res.ok) {
-        const errBody = await safeReadJson(res)
-        throw new Error(errBody?.error ?? `Request failed with status ${res.status}`)
+        throw new Error(await extractHttpError(res))
       }
       if (!res.body) throw new Error('Response has no body to stream')
 
       this.events.onConnectionChange('connected')
 
-      const format = this.config.format ?? 'sse'
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let done = false
+      let streamDone = false
+      let receivedAnyToken = false
 
-      while (!done) {
+      while (!streamDone) {
         const result = await reader.read()
-        done = result.done
-        if (result.value) {
-          resetIdleTimer()
-          buffer += decoder.decode(result.value, { stream: true })
+        if (result.done) break
+        resetIdleTimer()
+        buffer += decoder.decode(result.value, { stream: true })
 
-          if (format === 'text') {
-            // Raw mode — forward everything immediately, no framing to parse.
-            this.events.onStreamChunk(assistantId, buffer)
-            buffer = ''
-            continue
-          }
+        // SSE frames are separated by a blank line.
+        const frames = buffer.split('\n\n')
+        buffer = frames.pop() ?? '' // last (possibly incomplete) frame stays buffered
 
-          // SSE mode — process complete lines, keep any trailing partial
-          // line in the buffer for the next chunk.
-          const lines = buffer.split('\n')
-          buffer = lines.pop() ?? ''
-          for (const line of lines) {
-            const delta = parseSseLine(line)
-            if (delta === SSE_DONE) {
-              done = true
-              break
+        for (const frame of frames) {
+          const parsed = parseSseFrame(frame)
+          if (!parsed) continue
+
+          if (parsed.event === 'meta') {
+            this.externalChatId = parsed.data?.external_chat_id ?? parsed.data?.chat_id ?? this.externalChatId
+          } else if (parsed.event === 'token') {
+            const chunk = parsed.data?.text ?? parsed.data?.delta ?? parsed.data?.content ?? ''
+            if (chunk) {
+              receivedAnyToken = true
+              this.events.onStreamChunk(assistantId, chunk)
             }
-            if (delta) this.events.onStreamChunk(assistantId, delta)
+          } else if (parsed.event === 'sources') {
+            const sources = normalizeSources(parsed.data)
+            if (sources.length > 0) this.events.onSources?.(assistantId, sources)
+          } else if (parsed.event === 'done') {
+            streamDone = true
+          } else if (parsed.event === 'error') {
+            throw new Error(parsed.data?.message ?? 'Stream error')
           }
         }
       }
 
       if (idleTimer) clearTimeout(idleTimer)
+      if (!receivedAnyToken) {
+        // Guardrail-blocked or empty pipeline result — don't leave a blank bubble.
+        this.events.onStreamChunk(assistantId, "I don't have an answer for that yet.")
+      }
       this.events.onStreamEnd(assistantId)
     } catch (err) {
       if (idleTimer) clearTimeout(idleTimer)
@@ -163,32 +178,44 @@ export class StreamTransport implements ChatTransport {
   }
 }
 
-const SSE_DONE = Symbol('sse-done')
+interface ParsedSseFrame {
+  event: string
+  data: any
+}
 
-/** Parses one SSE line, returning the extracted text delta, SSE_DONE, or null (nothing to emit). */
-function parseSseLine(line: string): string | typeof SSE_DONE | null {
-  const trimmed = line.trim()
-  if (!trimmed.startsWith('data:')) return null
+/** Parses one blank-line-delimited SSE frame (possibly multi-line `data:`). */
+function parseSseFrame(frame: string): ParsedSseFrame | null {
+  let event = 'message'
+  const dataLines: string[] = []
 
-  const payload = trimmed.slice(5).trim()
-  if (!payload) return null
-  if (payload === '[DONE]') return SSE_DONE
+  for (const rawLine of frame.split('\n')) {
+    const line = rawLine.trimEnd()
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
+  }
+
+  if (dataLines.length === 0) return null
+  const rawData = dataLines.join('\n')
 
   try {
-    const json = JSON.parse(payload)
-    // Try common shapes: our own {delta}, OpenAI-style choices[0].delta.content,
-    // or a plain {text}/{content} field.
-    const text =
-      json.delta ??
-      json.choices?.[0]?.delta?.content ??
-      json.text ??
-      json.content ??
-      null
-    return typeof text === 'string' ? text : null
+    return { event, data: JSON.parse(rawData) }
   } catch {
-    // Not JSON — treat the raw payload itself as the text delta.
-    return payload
+    return { event, data: rawData }
   }
+}
+
+function normalizeSources(raw: any): ChatMessageSource[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((s) => ({ content: s?.content ?? '', score: s?.score ?? null }))
+}
+
+async function extractHttpError(res: Response): Promise<string> {
+  const body = await safeReadJson(res)
+  if (res.status === 429) return 'Too many messages — please wait a moment and try again.'
+  if (res.status === 401 || res.status === 403) return 'Your session has expired. Please refresh and try again.'
+  if (typeof body?.detail === 'string') return body.detail
+  if (Array.isArray(body?.detail) && body.detail[0]?.msg) return body.detail[0].msg
+  return `Request failed with status ${res.status}`
 }
 
 async function safeReadJson(res: Response): Promise<any | null> {

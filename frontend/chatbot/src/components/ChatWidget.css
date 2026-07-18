@@ -203,6 +203,45 @@
   color: #ef4444;
 }
 
+.ccw-sources {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ccw-border);
+}
+
+.ccw-sources-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ccw-text-muted);
+  margin-bottom: 4px;
+}
+
+.ccw-sources-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ccw-source-chip {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--ccw-surface);
+  border: 1px solid var(--ccw-border);
+  color: var(--ccw-text-muted);
+  cursor: default;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ccw-timestamp {
   margin-top: 4px;
   font-size: 11px;

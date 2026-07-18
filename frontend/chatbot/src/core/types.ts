@@ -15,6 +15,11 @@ export type MessageStatus =
   | 'complete'
   | 'error'
 
+export interface ChatMessageSource {
+  content: string
+  score?: number | null
+}
+
 export interface ChatMessage {
   id: string
   role: MessageRole
@@ -24,6 +29,8 @@ export interface ChatMessage {
   /** Set true while an assistant message is still receiving stream chunks */
   isStreaming?: boolean
   error?: string
+  /** RAG retrieval sources behind this answer, if the backend returned any */
+  sources?: ChatMessageSource[]
 }
 
 export type ProtocolType = 'http' | 'websocket' | 'stream' | 'mock'
@@ -39,6 +46,8 @@ export interface TransportEvents {
   onStreamEnd: (id: string) => void
   onError: (error: string, messageId?: string) => void
   onConnectionChange: (status: ConnectionStatus) => void
+  /** Optional — called when RAG retrieval sources arrive for a message, without touching its streamed content */
+  onSources?: (id: string, sources: ChatMessageSource[]) => void
 }
 
 export type ConnectionStatus =
@@ -90,7 +99,7 @@ export interface ChatWidgetConfig {
 
 export type ProtocolConfig =
   | { type: 'http'; endpoint: string; headers?: Record<string, string> }
-  | { type: 'websocket'; url: string; protocols?: string[] }
+  | { type: 'websocket'; url: string; authToken?: string; protocols?: string[] }
   | { type: 'stream'; endpoint: string; headers?: Record<string, string> }
   | { type: 'mock' } // dummy data mode — used for this scaffold phase
 
