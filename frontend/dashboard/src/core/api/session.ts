@@ -1,15 +1,15 @@
 /**
- * Client-side session storage (tokens). Kept next to the api layer because
- * the request interceptor is its main consumer. Swap the implementation
- * (cookies, next-auth, Amplify) without touching anything above it.
+ * Client-side session storage. The backend's local dev auth is a single
+ * bearer token from POST /auth/dev-token — no idToken/refreshToken pair
+ * (that's an Amplify/Cognito concept from the old CRA project, not this
+ * backend). Kept minimal on purpose.
  */
 export interface UserSession {
   accessToken: string;
-  idToken: string;
-  refreshToken?: string;
+  email?: string;
 }
 
-const KEY = 'GENAI_DASHBOARD_SESSION';
+const KEY = 'RAG_DASHBOARD_SESSION';
 
 export const saveUserSession = (session: UserSession): void => {
   if (typeof window !== 'undefined') localStorage.setItem(KEY, JSON.stringify(session));

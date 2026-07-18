@@ -1,7 +1,0 @@
-{
-  "/(dashboard)/chat/page": "app/(dashboard)/chat/page.js",
-  "/(dashboard)/admin/analytics/page": "app/(dashboard)/admin/analytics/page.js",
-  "/(dashboard)/admin/users/page": "app/(dashboard)/admin/users/page.js",
-  "/(dashboard)/admin/roles/page": "app/(dashboard)/admin/roles/page.js",
-  "/(dashboard)/admin/content/page": "app/(dashboard)/admin/content/page.js"
-}

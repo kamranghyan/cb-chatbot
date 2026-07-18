@@ -1,47 +1,28 @@
-import { apiClient } from '../core/api/client';
+/**
+ * MOCK-ONLY — this backend has no /users endpoints (see backend README's
+ * API Overview table). Wired to mockOnlyClient so the Users screen keeps
+ * working for demo/UI purposes. Once real endpoints exist, change
+ * `mockOnlyClient` -> `apiClient` here and nowhere else.
+ */
+import { mockOnlyClient } from '../core/api/client';
 import { ENDPOINTS } from '../core/api/endpoints';
 import type { AdminUser, ApiResponse } from '../core/api/types';
 
 export const createUser = (payload: Partial<AdminUser>): Promise<ApiResponse<AdminUser>> =>
-  apiClient.post(ENDPOINTS.users.root, payload);
+  mockOnlyClient.post(ENDPOINTS.users.root, payload);
 
-export const getUserByEmail = (email: string): Promise<ApiResponse<AdminUser>> =>
-  apiClient.get(ENDPOINTS.users.byEmail(email));
-
-export const getUserById = (userId: string): Promise<ApiResponse<AdminUser>> =>
-  apiClient.get(ENDPOINTS.users.byId(userId));
-
-export const listUsers = (params: Record<string, string | number> = {}): Promise<ApiResponse<AdminUser[]>> => {
-  const qs = new URLSearchParams(params as Record<string, string>).toString();
-  return apiClient.get(qs ? `${ENDPOINTS.users.list}?${qs}` : ENDPOINTS.users.list);
-};
-
-export const listBots = (params: Record<string, string | number> = {}): Promise<ApiResponse<AdminUser[]>> => {
-  const qs = new URLSearchParams(params as Record<string, string>).toString();
-  return apiClient.get(qs ? `${ENDPOINTS.users.bots}?${qs}` : ENDPOINTS.users.bots);
-};
-
-export const userChatSessions = (
-  userId: string,
-  page?: number,
-  perPage?: number,
-): Promise<ApiResponse<unknown>> => {
-  const qs = new URLSearchParams({ external_user_id: userId });
-  if (page) qs.set('page', String(page));
-  if (perPage) qs.set('per_page', String(perPage));
-  return apiClient.get(`${ENDPOINTS.users.sessionList}?${qs.toString()}`);
-};
+export const listUsers = (): Promise<ApiResponse<AdminUser[]>> =>
+  mockOnlyClient.get(ENDPOINTS.users.list);
 
 export const updateUser = (
   payload: Partial<AdminUser> & { customerid: string },
 ): Promise<ApiResponse<AdminUser>> => {
   const { customerid, ...body } = payload;
-  // Old version forgot to return the promise, so callers could not await it. Fixed.
-  return apiClient.patch(ENDPOINTS.users.update(customerid), body);
+  return mockOnlyClient.patch(ENDPOINTS.users.update(customerid), body);
 };
 
-export const getUserRoles = (): Promise<ApiResponse<string[]>> =>
-  apiClient.get(ENDPOINTS.users.rolesList);
-
 export const deleteUser = (userId: string): Promise<ApiResponse<void>> =>
-  apiClient.delete(ENDPOINTS.users.update(userId));
+  mockOnlyClient.delete(ENDPOINTS.users.update(userId));
+
+export const getUserRoles = (): Promise<ApiResponse<string[]>> =>
+  mockOnlyClient.get(ENDPOINTS.users.rolesList);

@@ -8,12 +8,10 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import { useAuth } from '../hooks/useAuth';
-import { ENV } from '@/core/config/env';
 
 export function LoginForm() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,9 +20,9 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email);
     } catch {
-      setError('Sign-in failed. Check your credentials and try again.');
+      setError('Could not get a token. Is the backend running (ENV=local)?');
     } finally {
       setLoading(false);
     }
@@ -33,17 +31,15 @@ export function LoginForm() {
   return (
     <Paper sx={{ p: 4, width: 380 }} variant="outlined">
       <Typography variant="h5" fontWeight={700} gutterBottom>Sign in</Typography>
-      {ENV.USE_MOCK_API && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Mock mode: any email/password works.
-        </Alert>
-      )}
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Local dev auth: enter any email to get a dev token. This only works
+        when the backend is running with ENV=local.
+      </Alert>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Box component="form" onSubmit={handleSubmit} sx={{ display: 'grid', gap: 2 }}>
         <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required fullWidth />
-        <TextField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required fullWidth />
         <Button type="submit" variant="contained" size="large" disabled={loading}>
-          {loading ? 'Signing in…' : 'Sign in'}
+          {loading ? 'Getting token…' : 'Continue'}
         </Button>
       </Box>
     </Paper>

@@ -1,8 +1,11 @@
 'use client';
 
 /**
- * Shell for every authenticated screen: sidebar navigation + auth gate.
- * Route groups — (dashboard) — give shared layout without affecting URLs.
+ * Shell for the Conversation Management Dashboard. This is NOT a chatbot —
+ * there is no message-sending screen. Admins review conversations users had
+ * with the AI, unanswered questions, and reported issues.
+ * "Users" (account management, distinct from "who chatted") and "Roles"
+ * are marked (demo data) — this backend has no /users or /roles endpoints.
  */
 import type { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -16,7 +19,10 @@ import Toolbar from '@mui/material/Toolbar';
 import AppBar from '@mui/material/AppBar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import ChatIcon from '@mui/icons-material/ChatBubbleOutline';
+import Chip from '@mui/material/Chip';
+import ForumIcon from '@mui/icons-material/Forum';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import ReportProblemIcon from '@mui/icons-material/ReportProblemOutlined';
 import PeopleIcon from '@mui/icons-material/PeopleOutline';
 import SecurityIcon from '@mui/icons-material/Security';
 import FolderIcon from '@mui/icons-material/FolderOpen';
@@ -25,14 +31,16 @@ import { AuthGuard } from '@/features/auth/components/AuthGuard';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 const NAV = [
-  { label: 'Chat', href: '/chat', icon: <ChatIcon /> },
-  { label: 'Users', href: '/admin/users', icon: <PeopleIcon /> },
-  { label: 'Roles', href: '/admin/roles', icon: <SecurityIcon /> },
-  { label: 'Content', href: '/admin/content', icon: <FolderIcon /> },
+  { label: 'Conversations', href: '/admin/conversations', icon: <ForumIcon /> },
+  { label: 'Unanswered Questions', href: '/admin/unanswered', icon: <HelpOutlineIcon /> },
+  { label: 'Issues', href: '/admin/issues', icon: <ReportProblemIcon /> },
+  { label: 'Ingestion', href: '/admin/ingestion', icon: <FolderIcon /> },
   { label: 'Analytics', href: '/admin/analytics', icon: <BarChartIcon /> },
+  { label: 'Users', href: '/admin/users', icon: <PeopleIcon />, demo: true },
+  { label: 'Roles', href: '/admin/roles', icon: <SecurityIcon />, demo: true },
 ];
 
-const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH = 260;
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -44,7 +52,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <Box sx={{ display: 'flex' }}>
         <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
           <Toolbar sx={{ justifyContent: 'space-between' }}>
-            <Typography variant="h6" fontWeight={700}>GenAI Dashboard</Typography>
+            <Typography variant="h6" fontWeight={700}>Conversation Management Dashboard</Typography>
             <Button color="inherit" onClick={logout}>Sign out</Button>
           </Toolbar>
         </AppBar>
@@ -62,6 +70,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               >
                 <ListItemIcon>{item.icon}</ListItemIcon>
                 <ListItemText primary={item.label} />
+                {item.demo && <Chip label="demo data" size="small" variant="outlined" />}
               </ListItemButton>
             ))}
           </List>
