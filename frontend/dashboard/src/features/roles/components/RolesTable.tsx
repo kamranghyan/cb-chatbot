@@ -32,7 +32,7 @@ export function RolesTable() {
       header: 'Permissions',
       render: (r) => (
         <Stack direction="row" spacing={0.5} flexWrap="wrap">
-          {r.permissions.map((p) => <Chip key={p} size="small" label={p} />)}
+          {r.permissions.map((p, pi) => <Chip key={`${p}-${pi}`} size="small" label={p} />)}
         </Stack>
       ),
     },

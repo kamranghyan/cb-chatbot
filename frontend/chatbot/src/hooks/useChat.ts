@@ -56,6 +56,12 @@ export function useChat(config: ChatWidgetConfig): UseChatResult {
     setIsBotTyping(false)
   }, [])
 
+  const attachSources = useCallback((id: string, sources: ChatMessage['sources']) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, sources } : m))
+    )
+  }, [])
+
   const markError = useCallback((error: string, messageId?: string) => {
     setIsBotTyping(false)
     if (!messageId) return
@@ -77,7 +83,8 @@ export function useChat(config: ChatWidgetConfig): UseChatResult {
       onStreamChunk: appendChunk,
       onStreamEnd: markComplete,
       onError: markError,
-      onConnectionChange: setConnectionStatus
+      onConnectionChange: setConnectionStatus,
+      onSources: attachSources
     })
     transportRef.current = transport
     transport.connect()

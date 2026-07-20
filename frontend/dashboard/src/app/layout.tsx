@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import { Providers } from '@/lib/providers';
 
 export const metadata: Metadata = {
-  title: 'GenAI Dashboard',
-  description: 'Enterprise GenAI chatbot administration dashboard',
+  title: 'Conversation Management Dashboard',
+  description: 'Review user conversations, unanswered questions, and issues from the AI knowledge base',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
