@@ -59,4 +59,16 @@ class RoleId:
     """Old code mein magic numbers (role_id == 1 or 3) — ab named constants."""
 
     ADMIN = 1
+    TENANT = 2
     SUPER_ADMIN = 3
+    GUEST = 4
+
+
+ROLE_NAME_TO_ID = {"ADMIN": RoleId.ADMIN, "TENANT": RoleId.TENANT, "GUEST": RoleId.GUEST}
+
+# Role -> default security clearance (provisioning pe lagti hai, RBAC isi se chalta hai)
+ROLE_DEFAULT_CLEARANCE = {
+    RoleId.ADMIN: SecurityLevel.SECRET,
+    RoleId.TENANT: SecurityLevel.PRIVATE,
+    RoleId.GUEST: SecurityLevel.PUBLIC,
+}

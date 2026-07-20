@@ -12,7 +12,8 @@ Built with **FastAPI · SQLAlchemy 2.0 · Pydantic v2 · LangChain 0.3 · pgvect
 - **Env-first configuration with AWS SSM fallback** — runs fully local with just a `.env` file (no AWS needed); on AWS environments, missing values are fetched from SSM Parameter Store automatically (batched, cached, fail-soft).
 - **Three chat transports, one pipeline** — plain HTTP JSON, SSE streaming, and WebSocket all share the same orchestration code.
 - **Retrieval-level RBAC** — documents are stamped with `security_level` / `department_id` / `brand_id` at ingestion; retrieval filters by the user's clearance, so restricted content never reaches the LLM context.
-- **Hardened** — per-user rate limiting, Redis caching, env-driven CORS, fail-soft integrations, and a unit test suite.
+- **AWS Cognito authentication** — role-based user pool (admin / tenant / guest-user) with JWKS token verification, lazy user provisioning, and an auto-login guest "flytime" flow. Session lifetimes are AWS-controlled per app client.
+- **Hardened** — per-user and per-role rate limiting, Redis caching, env-driven CORS, a global exception handler, fail-soft integrations, and a unit test suite (28 tests).
 
 ---
 
@@ -129,14 +130,35 @@ Memory and guardrail are fail-soft: an LLM hiccup logs a warning and the chat pr
 - Env-driven CORS allowlist; unit tests (config priority, JWT roundtrip, clearance hierarchy, chunker metadata, provider registry).
 - Design principle: availability-critical components **fail-open** (cache, rate limit); security-critical components **fail-closed** (auth).
 
+### Phases A–D — AWS Cognito Authentication
+
+**A — Cognito setup (Terraform-ready by design).** User pool + three groups (`admin`, `tenant`, `guest-user`) + two app clients: `main-client` (60-min access / 30-day refresh) and `guest-client` (60-min access **and** 60-min refresh — the guest "flytime"). No custom attributes (the classic Terraform pool-recreate trap); every ID lives in env/SSM, so a later `terraform import` requires zero code changes.
+
+**B — Token verification & provisioning.** Cognito tokens are RS256-signed; the API verifies them against the pool's JWKS (fetched once, cached 12h, key-rotation aware — no AWS call per request, fail-closed). `cognito:groups` maps to internal roles via an env-configured mapping (`COGNITO_GROUP_ROLE_MAP`); multiple groups resolve to the most powerful, unknown groups default to least-privilege GUEST. First request lazily provisions the DB user with a role-derived clearance (ADMIN→SECRET, TENANT→PRIVATE, GUEST→PUBLIC) — which plugs straight into retrieval-level RBAC. The `AuthContext` interface is unchanged, so no downstream code knows auth switched. `AUTH_PROVIDER=local|cognito` keeps offline local dev intact.
+
+**C — Auth endpoints.** `POST /auth/signup` implements the guest flytime flow: Cognito sign-up → auto-confirm → `guest-user` group → **auto-login**, returning tokens in the signup response so the frontend goes straight to chat (no login screen). After 60 minutes both tokens expire → 401 → re-login. `POST /auth/login` (main or guest client) and `POST /auth/refresh` complete the set. Wrong email and wrong password return the identical generic 401 (user-enumeration guard). These endpoints only exist when `AUTH_PROVIDER=cognito`.
+
+**D — Role hardening.** Global unhandled-exception handler (clean JSON 500, details only in logs — no more dropped connections), `RequireTenant` dependency completing the role ladder (User → Tenant → Admin), and a stricter guest rate limit (`GUEST_RATE_LIMIT_PER_MINUTE`, default 5/min vs 20/min).
+
 ---
 
 ## Request Flows
 
 ### Authentication (every protected request)
 ```
-Bearer JWT ── verify signature/expiry ── check active session in user_sessions
-           ── build request-scoped AuthContext (user, role, clearance, brand, session)
+AUTH_PROVIDER=local   : HS256 JWT ── verify ── active-session check in DB
+AUTH_PROVIDER=cognito : RS256 JWT ── JWKS verify (cached) ── issuer + client_id check
+                        ── cognito:groups → role (env mapping)
+                        ── lazy provision DB user (role → clearance) + session
+Both build the same request-scoped AuthContext → RequireUser / RequireTenant / RequireAdmin
+```
+
+### Guest "flytime" flow
+```
+POST /auth/signup ── Cognito sign_up (guest client) ── auto-confirm
+                  ── add to guest-user group ── auto-login ── tokens in response
+Frontend: signup form → tokens → straight to chat (no login screen)
+60 minutes later: access + refresh both expire (AWS-enforced) → 401 → re-login
 ```
 
 ### Chat (HTTP)
@@ -238,7 +260,12 @@ Set `ENV=dev` (SSM fallback turns on automatically). Values present in env/`.env
 | `ENABLE_GUARDRAILS` | true | topic classifier step |
 | `ENABLE_DEPARTMENT_FILTER` | false | enable once all docs are stamped with department |
 | `RETRIEVAL_TOP_K` | 4 | chunks per query |
+| `AUTH_PROVIDER` | `local` | `local` (dev-token) or `cognito` |
+| `COGNITO_USER_POOL_ID` / `COGNITO_REGION` | — | pool identity (from console now, Terraform later) |
+| `COGNITO_CLIENT_ID` / `COGNITO_GUEST_CLIENT_ID` | — | main (30-day) and guest (60-min flytime) clients |
+| `COGNITO_GROUP_ROLE_MAP` | admin/tenant/guest-user | Cognito group → internal role mapping |
 | `RATE_LIMIT_PER_MINUTE` | 20 | per-user LLM endpoint limit (0 = off) |
+| `GUEST_RATE_LIMIT_PER_MINUTE` | 5 | stricter limit for guest-role users |
 | `CORS_ORIGINS` | `*` | comma-separated allowlist for prod |
 | `LANGSMITH_TRACING` / `LANGSMITH_API_KEY` | off | LangChain tracing |
 | `SENDGRID_API_KEY`, `SALESFORCE_*` | empty | optional integrations (empty = disabled) |
@@ -249,7 +276,10 @@ Set `ENV=dev` (SSM fallback turns on automatically). Values present in env/`.env
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| POST | `/api/v1/auth/dev-token` | — | test token (local env only) |
+| POST | `/api/v1/auth/dev-token` | — | test token (`AUTH_PROVIDER=local` only) |
+| POST | `/api/v1/auth/signup` | — | guest signup + auto-login (cognito mode) |
+| POST | `/api/v1/auth/login` | — | admin/tenant/guest login (cognito mode) |
+| POST | `/api/v1/auth/refresh` | — | refresh access token (cognito mode) |
 | POST | `/api/v1/chat` | user | RAG chat (JSON) |
 | POST | `/api/v1/chat/stream` | user | RAG chat (SSE) |
 | WS | `/api/v1/chat/ws?token=` | user | RAG chat (WebSocket, multi-turn) |
@@ -275,7 +305,7 @@ Set `ENV=dev` (SSM fallback turns on automatically). Values present in env/`.env
 pytest tests/ -v
 ```
 
-Covers: settings priority chain, JWT encode/decode, security clearance hierarchy, chunker size/metadata behavior, provider registry integrity, and RBAC filter mapping.
+Covers (28 tests): settings priority chain, JWT encode/decode, clearance hierarchy, chunker behavior, provider registry integrity, RBAC filter mapping, Cognito JWKS verification (RSA-signed fixtures — signature/issuer/expiry/client rejection), group→role mapping, auth flows against a mocked Cognito (moto: signup/auto-login, duplicate 409, login/refresh, enumeration guard), and role dependencies with per-role rate limits.
 
 Manual verification patterns used throughout the phases:
 - RBAC: ingest a `secret` doc → search as `public` clearance → must not appear.
@@ -301,3 +331,4 @@ Manual verification patterns used throughout the phases:
 | 819-line chat god class / 582-line rag_query | focused services, each < 200 lines |
 | DB password and AWS keys in code/Dockerfile; credentials-returning endpoint | secrets outside the repo (AWS chain / SSM); endpoint removed |
 | No rate limiting, no cache in use, no tests | Redis rate limit + cache, unit test suite |
+| Hardcoded users, app-managed passwords | AWS Cognito user pool: groups as roles, JWKS verification, AWS-controlled session lifetimes, lazy provisioning |

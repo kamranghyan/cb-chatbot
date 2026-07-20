@@ -68,6 +68,18 @@ def create_app() -> FastAPI:
             content={"error_code": exc.error_code, "message": exc.message},
         )
 
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception):
+        """Koi bhi unhandled error -> clean JSON 500 (empty reply kabhi nahi).
+        Detail sirf logs mein — response mein internals leak nahi hote."""
+        import logging
+
+        logging.getLogger("app").exception("Unhandled error on %s %s", request.method, request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={"error_code": "INTERNAL_ERROR", "message": "Something went wrong. Please try again."},
+        )
+
     app.include_router(api_router)
     return app
 

@@ -51,6 +51,14 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "insecure-default-change-me"
     JWT_ALGORITHM: str = "HS256"
 
+    # ---- Auth provider ----
+    AUTH_PROVIDER: str = "local"          # local | cognito
+    COGNITO_USER_POOL_ID: str = ""
+    COGNITO_CLIENT_ID: str = ""           # main client (admin/tenant)
+    COGNITO_GUEST_CLIENT_ID: str = ""     # guest client (flytime)
+    COGNITO_REGION: str = "ap-south-1"
+    COGNITO_GROUP_ROLE_MAP: str = '{"admin":"ADMIN","tenant":"TENANT","guest-user":"GUEST"}'
+
     # ---- RAG providers (factory in selection pe adapter choose karti hai) ----
     LLM_PROVIDER: str = "bedrock"
     LLM_MODEL_ID: str = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -85,6 +93,7 @@ class Settings(BaseSettings):
     # ---- Hardening ----
     CORS_ORIGINS: str = "*"              # comma-separated; prod pe explicit list
     RATE_LIMIT_PER_MINUTE: int = 20      # 0 = disabled
+    GUEST_RATE_LIMIT_PER_MINUTE: int = 5 # guest role ka sakht limit
 
     # ---- Integrations ----
     SENDGRID_API_KEY: str = ""

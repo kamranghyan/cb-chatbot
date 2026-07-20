@@ -15,7 +15,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.v1.schemas.auth import LoginIn, RefreshIn, SignupIn, TokenOut
 from src.api.v1.schemas.chat import DevTokenIn
+from src.services.cognito_auth_service import CognitoAuthService
 from src.config import get_settings
 from src.core.auth import TokenHelper
 from src.core.exceptions import NotFoundError
@@ -23,6 +25,35 @@ from src.infrastructure.db.models import User, UserSession
 from src.infrastructure.db.session import get_db
 
 router = APIRouter()
+
+
+def _cognito_only() -> None:
+    """Yeh endpoints sirf AUTH_PROVIDER=cognito pe exist karte hain."""
+    if get_settings().AUTH_PROVIDER != "cognito":
+        raise NotFoundError()
+
+
+@router.post("/signup", response_model=TokenOut)
+async def signup(body: SignupIn):
+    """Guest flytime flow: signup -> auto-confirm -> guest group -> AUTO-LOGIN.
+    Response mein tokens — frontend seedha chat pe le jaye (login screen skip).
+    60 min baad token expire -> 401 -> user dobara login kare."""
+    _cognito_only()
+    return await CognitoAuthService().signup_guest(body.email, body.password)
+
+
+@router.post("/login", response_model=TokenOut)
+async def login(body: LoginIn):
+    """Admin/tenant: client_type=main (default, 30-din refresh).
+    Guest re-login: client_type=guest (60-min flytime)."""
+    _cognito_only()
+    return await CognitoAuthService().login(body.email, body.password, body.client_type)
+
+
+@router.post("/refresh", response_model=TokenOut)
+async def refresh(body: RefreshIn):
+    _cognito_only()
+    return await CognitoAuthService().refresh(body.refresh_token, body.client_type)
 
 
 @router.post("/dev-token")
