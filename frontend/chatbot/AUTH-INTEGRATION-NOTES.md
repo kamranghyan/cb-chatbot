@@ -152,3 +152,53 @@ unknown paths (so a hard refresh on `/chat` doesn't 404) — Vite's dev
 server does this automatically; for a static production host (S3+CloudFront,
 Nginx, etc.) add an SPA fallback rule. Say so if you want this documented
 per-platform.
+
+---
+
+## Update: auth embedded INSIDE the widget (no separate routes/pages)
+
+Reverted the previous routing approach entirely per feedback — Signup and
+Login are no longer separate pages/routes. `react-router-dom` was removed.
+
+### New structure
+```
+components/
+  ChatWidget.tsx              <- UNCHANGED. Plain, auth-agnostic widget for
+                                 any host that manages its own auth
+                                 externally (as originally designed).
+  AuthenticatedChatWidget.tsx <- NEW. This app's actual entry point. Owns
+                                 the window/launcher/Header (same chrome
+                                 as ChatWidget) and swaps its BODY between:
+                                   status 'checking'      -> spinner
+                                   status 'unauthenticated' -> <AuthPanel/>
+                                   status 'authenticated'   -> <ChatBody/>
+  AuthPanel.tsx               <- NEW. Signup/Login forms styled to fit
+                                 inside the widget's own window (reuses the
+                                 same --ccw-* CSS variables/theme).
+  ChatBody.tsx                <- NEW. Messages + input + typing indicator,
+                                 extracted from ChatWidget.tsx so it only
+                                 mounts (and only opens a transport) once
+                                 authenticated.
+```
+`App.tsx` now just renders `<AuthProvider><AuthenticatedChatWidget config={...}/></AuthProvider>` — no routes at all.
+
+### Why this satisfies "no reload, same window, seamless"
+`AuthenticatedChatWidget` renders ONE persistent `ccw-window` div. Whether
+you see the signup form, the login form, or chat messages is a plain
+`status === '...'` conditional inside that same div — not a route change,
+not a remount of the window/Header/launcher button. When `login()` resolves
+and `AuthContext`'s `status` flips to `'authenticated'`, React just
+re-renders that one conditional and `<ChatBody/>` mounts in place of
+`<AuthPanel/>` — same open/close state, same scroll container, no flicker.
+
+### Bundle hygiene
+Auth panel CSS was split into its own file (`AuthPanel.css`), injected
+separately from `ChatWidget.css`. The plain, publicly-exported `<ChatWidget/>`
+(what `react-chat-widget-kit` ships as a library) is **completely
+unaffected** — confirmed identical bundle size before/after (`52.57 kB`).
+Only `AuthenticatedChatWidget`'s tree (this app) pays for the auth CSS.
+
+### Default view
+A user opening the widget for the first time sees **Signup** first
+(`initialView="signup"` in `AuthPanel`), matching the original required
+order (Register before Login) — just embedded now instead of a page.

@@ -6,9 +6,11 @@ interface HeaderProps {
   botAvatarUrl?: string
   connectionStatus: ConnectionStatus
   onClose: () => void
+  /** Optional — only passed by AuthenticatedChatWidget once a user is signed in. */
+  onLogout?: () => void
 }
 
-export function Header({ botName, botAvatarUrl, connectionStatus, onClose }: HeaderProps) {
+export function Header({ botName, botAvatarUrl, connectionStatus, onClose, onLogout }: HeaderProps) {
   return (
     <div className="ccw-header">
       <div className="ccw-header-identity">
@@ -27,14 +29,21 @@ export function Header({ botName, botAvatarUrl, connectionStatus, onClose }: Hea
           </div>
         </div>
       </div>
-      <button
-        type="button"
-        className="ccw-close-btn"
-        onClick={onClose}
-        aria-label="Close chat"
-      >
-        ×
-      </button>
+      <div className="ccw-header-actions">
+        {onLogout && (
+          <button type="button" className="ccw-logout-btn" onClick={onLogout} aria-label="Sign out">
+            Sign out
+          </button>
+        )}
+        <button
+          type="button"
+          className="ccw-close-btn"
+          onClick={onClose}
+          aria-label="Close chat"
+        >
+          ×
+        </button>
+      </div>
     </div>
   )
 }

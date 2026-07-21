@@ -1,0 +1,114 @@
+/* ---------- Auth panel (embedded signup/login, same window as chat) ---------- */
+.ccw-auth-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px 20px;
+  overflow-y: auto;
+  gap: 16px;
+}
+
+.ccw-auth-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ccw-text);
+  margin: 0;
+}
+
+.ccw-auth-subtitle {
+  font-size: 13px;
+  color: var(--ccw-text-muted);
+  margin: -8px 0 0;
+}
+
+.ccw-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ccw-auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ccw-auth-field label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ccw-text);
+}
+
+.ccw-auth-field input {
+  font: inherit;
+  font-size: 13.5px;
+  padding: 9px 10px;
+  border: 1px solid var(--ccw-border);
+  border-radius: 8px;
+  outline: none;
+  background: var(--ccw-bg);
+  color: var(--ccw-text);
+}
+
+.ccw-auth-field input:focus {
+  border-color: var(--ccw-accent);
+}
+
+.ccw-auth-hint {
+  font-size: 11.5px;
+  color: var(--ccw-text-muted);
+}
+
+.ccw-auth-error {
+  font-size: 12.5px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  color: #B91C1C;
+}
+
+.ccw-auth-submit {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--ccw-accent);
+  color: var(--ccw-accent-contrast);
+  cursor: pointer;
+}
+
+.ccw-auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ccw-auth-switch {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ccw-text-muted);
+}
+
+.ccw-auth-switch button {
+  font: inherit;
+  color: var(--ccw-accent);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.ccw-auth-checking {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ccw-text-muted);
+  font-size: 13px;
+}
+

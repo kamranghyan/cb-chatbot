@@ -83,6 +83,32 @@
   gap: 10px;
 }
 
+
+.ccw-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ccw-logout-btn {
+  border: 1px solid var(--ccw-border);
+  background: transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ccw-text-muted);
+  cursor: pointer;
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
+.ccw-logout-btn:hover {
+  background: var(--ccw-bg);
+  color: var(--ccw-text);
+}
+
+
 .ccw-avatar {
   width: 36px;
   height: 36px;
