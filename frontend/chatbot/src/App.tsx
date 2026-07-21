@@ -1,86 +1,45 @@
-import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './core/auth/AuthContext'
-import { RegisterScreen } from './screens/RegisterScreen'
-import { LoginScreen } from './screens/LoginScreen'
-import { ChatScreen } from './screens/ChatScreen'
-import './screens/AuthScreens.css'
+import React, { useMemo } from 'react'
+import { AuthProvider } from './core/auth/AuthContext'
+import { AuthenticatedChatWidget } from './components/AuthenticatedChatWidget'
+import type { ChatWidgetConfig } from './core/types'
+import netflixLogo from '../public/assets/logos-img/netflix-logo.jpg'
 
 // ============================================================================
-// APP SHELL — real URL routing (react-router-dom), so login always lands on
-// /chat with the address bar actually reflecting it — not just an internal
-// state switch. Register -> Login -> Chat, backed entirely by the real auth
-// API (no mock, no hardcoded credentials).
+// APP SHELL — no routes, no separate auth pages. Signup/Login/Chat all live
+// inside the one <AuthenticatedChatWidget/>, same window, same launcher
+// button, same position — exactly like any chat widget a visitor would
+// expect, just auth-aware. AuthProvider gives every part of that widget
+// (AuthPanel, ChatBody, etc.) one shared, already-resolved auth state.
 // ============================================================================
 
-/** Blocks /chat until a session exists; sends guests to /register instead. */
-function RequireAuth({ children }: { children: React.ReactElement }) {
-  const { status } = useAuth()
-
-  if (status === 'checking') {
-    // Synchronous localStorage read under the hood — this resolves on the
-    // very first render pass, not a network wait. Shown only to avoid a
-    // one-frame flash between "unknown" and "authenticated".
-    return <div className="auth-checking">Loading…</div>
-  }
-  if (status === 'unauthenticated') {
-    return <Navigate to="/register" replace />
-  }
-  return children
-}
-
-/** Sends an already-logged-in visitor straight to /chat instead of Register/Login. */
-function RedirectIfAuthed({ children }: { children: React.ReactElement }) {
-  const { status } = useAuth()
-
-  if (status === 'checking') {
-    return <div className="auth-checking">Loading…</div>
-  }
-  if (status === 'authenticated') {
-    return <Navigate to="/chat" replace />
-  }
-  return children
-}
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000') + '/api/v1'
 
 export default function App() {
+  const config: ChatWidgetConfig = useMemo(
+    () => ({
+      botName: 'Assistant',
+      botAvatarUrl: netflixLogo,
+      welcomeMessage: 'Hi! How can I help?',
+      placeholderText: 'Ask me something…',
+      position: 'bottom-right',
+      showTypingIndicator: true,
+      showTimestamps: true,
+      fullScreenOnMobile: true,
+      startOpen: true,
+      protocol: {
+        type: 'http',
+        endpoint: `${API_BASE}/chat`
+        // Authorization header is injected automatically by
+        // AuthenticatedChatWidget once the user is logged in — nothing to
+        // configure here.
+      }
+    }),
+    []
+  )
+
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/register"
-            element={
-              <RedirectIfAuthed>
-                <RegisterScreen />
-              </RedirectIfAuthed>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <RedirectIfAuthed>
-                <LoginScreen />
-              </RedirectIfAuthed>
-            }
-          />
-          <Route
-            path="/chat"
-            element={
-              <RequireAuth>
-                <ChatScreen />
-              </RequireAuth>
-            }
-          />
-          {/* Root and any unknown path: authenticated -> /chat, guest -> /register */}
-          <Route path="*" element={<RootRedirect />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthenticatedChatWidget config={config} />
     </AuthProvider>
   )
-}
-
-function RootRedirect() {
-  const { status } = useAuth()
-  if (status === 'checking') return <div className="auth-checking">Loading…</div>
-  return <Navigate to={status === 'authenticated' ? '/chat' : '/register'} replace />
 }
