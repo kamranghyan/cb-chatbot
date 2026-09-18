@@ -16,6 +16,7 @@ from src.api.v1 import api_router
 from src.config import get_settings
 from src.core.exceptions import AppException
 from src.core.logging import setup_logging
+from src.services.cag_service import warm_load_all
 from src.infrastructure.cache.redis import close_redis, init_redis
 from src.infrastructure.db.session import dispose_engine, init_engine
 
@@ -34,6 +35,7 @@ def _configure_langsmith() -> None:
 async def lifespan(app: FastAPI):
     init_engine()
     init_redis()
+    await warm_load_all()
     yield
     await close_redis()
     await dispose_engine()

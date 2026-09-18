@@ -13,5 +13,5 @@ class OllamaLLMProvider(LLMProvider):
         return ChatOllama(
             model=model_id,  # e.g. "phi4-mini", "llama3.2"
             temperature=kwargs.get("temperature", 0.0),
-            base_url=kwargs.get("base_url", "http://localhost:11434"),
+            base_url=kwargs.get("base_url", "http://host.docker.internal:11434"),
         )

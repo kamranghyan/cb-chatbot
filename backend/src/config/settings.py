@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     ENABLE_DEPARTMENT_FILTER: bool = False
     RETRIEVAL_TOP_K: int = 4
 
+    # ---- CAG (reserved for the next step — not read anywhere yet) ----
+    RETRIEVAL_OPTION: str = "rag"   # rag | cache | both
+
     # ---- Bedrock KB path ----
     KNOWLEDGE_BASE_ID: str = ""
     KB_DATASOURCE_ID: str = ""

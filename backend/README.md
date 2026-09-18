@@ -4,6 +4,15 @@ A production-grade, multi-tenant RAG (Retrieval-Augmented Generation) chatbot ba
 
 Built with **FastAPI · SQLAlchemy 2.0 · Pydantic v2 · LangChain 0.3 · pgvector · AWS Bedrock · Redis**.
 
+# How to Run Project
+
+venv activate virtual enviroment
+
+docker command : docker comose up
+
+ollama command : ollama serve 
+
+
 ---
 
 ## Highlights

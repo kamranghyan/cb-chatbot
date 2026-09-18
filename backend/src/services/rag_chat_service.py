@@ -23,6 +23,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
 import shortuuid
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import get_settings
@@ -32,10 +33,22 @@ from src.infrastructure.db.models import Chat, ChatSession, Conversation, Conver
 from src.prompts.registry import get_prompt
 from src.rag.factory import RagComponents
 from src.rag.vectorstore.base import ScoredDocument, SearchFilter
+from src.services.cag_service import select_context
+from src.services.context_builder import build_cag_context, build_rag_context, merge
 from src.services.guardrail_service import GuardrailService
 from src.services.memory_service import MemoryService
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class PipelinePrep:
+    """Result of steps 1-5 consumed by both non-streaming and streaming handlers."""
+
+    chat: Chat
+    docs: list[ScoredDocument] = field(default_factory=list)
+    prompt: str = ""
+    blocked_response: str | None = None
 
 
 class RagChatService:
@@ -54,7 +67,7 @@ class RagChatService:
         external_chat_id: str | None = None,
         is_regenerate: bool = False,
     ) -> dict:
-        """Non-streaming (HTTP) — Phase 3."""
+        """Non-streaming (HTTP) execution pipeline."""
         started = time.time()
         prep = await self._prepare(ctx, question, external_chat_id)
 
@@ -76,19 +89,23 @@ class RagChatService:
         is_regenerate: bool = False,
     ) -> AsyncIterator[dict]:
         """
-        Streaming (SSE/WS) — Phase 4. Event protocol:
-            {"event": "meta",    "data": {external_chat_id, title}}
-            {"event": "token",   "data": {"text": "..."}}          # N dafa
-            {"event": "sources", "data": [...]}
-            {"event": "done",    "data": {external_conv_id, response_time}}
-        Persistence stream COMPLETE hone ke baad hoti hai (partial answer save nahi).
+        Streaming (SSE/WS) execution pipeline.
+        Event Protocol:
+            - {"event": "meta",    "data": {external_chat_id, title}}
+            - {"event": "token",   "data": {"text": "..."}}
+            - {"event": "sources", "data": [...]}
+            - {"event": "done",    "data": {external_conv_id, response_time}}
         """
         started = time.time()
         prep = await self._prepare(ctx, question, external_chat_id)
 
-        yield {"event": "meta", "data": {
-            "external_chat_id": prep.chat.external_chat_id, "title": prep.chat.title,
-        }}
+        yield {
+            "event": "meta",
+            "data": {
+                "external_chat_id": prep.chat.external_chat_id,
+                "title": prep.chat.title,
+            },
+        }
 
         chunks: list[str] = []
         if prep.blocked_response is not None:
@@ -99,74 +116,102 @@ class RagChatService:
                 chunks.append(text)
                 yield {"event": "token", "data": {"text": text}}
 
-        yield {"event": "sources", "data": [
-            {"content": d.document.page_content[:300], "metadata": d.document.metadata, "score": d.score}
-            for d in prep.docs
-        ]}
+        yield {
+            "event": "sources",
+            "data": [
+                {
+                    "content": d.document.page_content[:300],
+                    "metadata": d.document.metadata,
+                    "score": d.score,
+                }
+                for d in prep.docs
+            ],
+        }
 
         convo = await self._persist(
-            prep.chat, ctx, question, "".join(chunks), prep.docs,
-            time.time() - started, is_regenerate,
+            prep.chat,
+            ctx,
+            question,
+            "".join(chunks),
+            prep.docs,
+            time.time() - started,
+            is_regenerate,
         )
-        yield {"event": "done", "data": {
-            "external_conv_id": convo.external_conv_id,
-            "response_time": convo.response_time,
-        }}
+
+        yield {
+            "event": "done",
+            "data": {
+                "external_conv_id": convo.external_conv_id,
+                "response_time": convo.response_time,
+            },
+        }
 
     # ---------- shared pipeline (steps 1-5) ----------
 
     async def _prepare(
         self, ctx: AuthContext, question: str, external_chat_id: str | None
-    ) -> "PipelinePrep":
+    ) -> PipelinePrep:
         s = get_settings()
 
-        # 1. chat resolve/create
+        # Step 1: Chat resolve / create
         chat = await self._get_or_create_chat(ctx, question, external_chat_id)
 
-        # 2. guardrail
+        # Step 2: Guardrail check
         if s.ENABLE_GUARDRAILS:
             result = await self.guardrail.check(question)
             if not result.allowed:
                 return PipelinePrep(chat=chat, blocked_response=result.response)
 
-        # 3. memory
+        # Step 3: Memory condensation
         retrieval_query = question
         if s.ENABLE_CHAT_MEMORY and external_chat_id:
             history = await self.memory.get_history(chat.external_chat_id)
             retrieval_query = await self.memory.condense_question(question, history)
 
-        # 4. retrieve (RBAC yahan enforce hota hai)
-        docs = await self.rag.vectorstore.search(
-            retrieval_query, k=s.RETRIEVAL_TOP_K, filters=self._filters_from_ctx(ctx)
-        )
+        # Steps 4-5: Retrieve and build context (branched on RETRIEVAL_OPTION)
+        docs: list[ScoredDocument] = []
+        rag_context = ""
+        cag_context = ""
 
-        # 5. prompt
-        context = "\n\n---\n\n".join(d.document.page_content for d in docs) or "No context found."
+        if s.RETRIEVAL_OPTION in ("rag", "both"):
+            docs = await self.rag.vectorstore.search(
+                retrieval_query, k=s.RETRIEVAL_TOP_K, filters=self._filters_from_ctx(ctx)
+            )
+            rag_context = build_rag_context(docs)
+
+        if s.RETRIEVAL_OPTION in ("cache", "both"):
+            selected = await select_context(retrieval_query, str(ctx.brand_id or ""))
+            cag_context = build_cag_context(selected)
+
+        if s.RETRIEVAL_OPTION == "rag":
+            context = rag_context or "No context found."
+        elif s.RETRIEVAL_OPTION == "cache":
+            context = cag_context or "No context found."
+        else:  # both
+            context = merge(cag_context, rag_context) or "No context found."
+
         prompt = get_prompt("rag_answer").format(context=context, question=retrieval_query)
         return PipelinePrep(chat=chat, docs=docs, prompt=prompt)
 
-    # ---------- steps ----------
+    # ---------- helper methods ----------
 
     def _filters_from_ctx(self, ctx: AuthContext) -> SearchFilter:
         s = get_settings()
         clearance = SecurityLevel(ctx.security_clearance.lower())
         return SearchFilter(
             security_levels=clearance.allowed_levels(),
-            # Department filter opt-in hai: tab hi on karo jab ingestion har doc
-            # pe department_id stamp karti ho (Phase 5) — warna sab exclude ho jata
             department_id=(
                 str(ctx.department_id)
                 if s.ENABLE_DEPARTMENT_FILTER and ctx.department_id is not None
                 else None
             ),
+            brand_id=str(ctx.brand_id) if ctx.brand_id is not None else None,
         )
 
     async def _get_or_create_chat(
         self, ctx: AuthContext, question: str, external_chat_id: str | None
     ) -> Chat:
         if external_chat_id:
-            from sqlalchemy import select
-
             result = await self.db.execute(
                 select(Chat).where(Chat.external_chat_id == external_chat_id)
             )
@@ -184,6 +229,7 @@ class RagChatService:
         )
         self.db.add(chat)
         await self.db.flush()
+
         self.db.add(ChatSession(external_chat_id=chat.external_chat_id, session_id=ctx.session_id))
         await self.db.flush()
         return chat
@@ -229,17 +275,11 @@ class RagChatService:
             "answer": convo.answer,
             "response_time": convo.response_time,
             "sources": [
-                {"content": d.document.page_content[:300], "metadata": d.document.metadata, "score": d.score}
+                {
+                    "content": d.document.page_content[:300],
+                    "metadata": d.document.metadata,
+                    "score": d.score,
+                }
                 for d in docs
             ],
         }
-
-
-@dataclass
-class PipelinePrep:
-    """Steps 1-5 ka result — HTTP aur streaming dono isko consume karte hain."""
-
-    chat: Chat
-    docs: list[ScoredDocument] = field(default_factory=list)
-    prompt: str = ""
-    blocked_response: str | None = None

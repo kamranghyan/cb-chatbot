@@ -10,5 +10,5 @@ from src.rag.embed.base import EmbeddingProvider, register_embedder
 class OllamaEmbeddingProvider(EmbeddingProvider):
     def get_embeddings(self, model_id: str, **kwargs) -> Embeddings:
         return OllamaEmbeddings(
-            model=model_id, base_url=kwargs.get("base_url", "http://localhost:11434")
+            model=model_id, base_url=kwargs.get("base_url", "http://host.docker.internal:11434")
         )
