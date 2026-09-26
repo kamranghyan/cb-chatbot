@@ -11,6 +11,8 @@ interface AuthContextValue {
   accessToken: string | null
   register: (email: string, password: string) => Promise<void>
   login: (email: string, password: string) => Promise<void>
+  /** Local-dev-only: email, no password. See authApi.devToken. */
+  loginDev: (email: string) => Promise<void>
   logout: () => void
 }
 
@@ -90,6 +92,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist]
   )
 
+  const loginDev = useCallback(async (userEmail: string) => {
+    const data = await authApi.devToken(userEmail)
+    saveSession({
+      accessToken: data.access_token,
+      refreshToken: null,
+      expiresAt: Date.now() + 8 * 3600 * 1000,
+      email: userEmail
+    })
+    setEmail(userEmail)
+    setAccessToken(data.access_token)
+    setStatus('authenticated')
+  }, [])
+
   const logout = useCallback(() => {
     clearSession()
     setStatus('unauthenticated')
@@ -98,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ status, email, accessToken, register, login, logout }}>
+    <AuthContext.Provider value={{ status, email, accessToken, register, login, loginDev, logout }}>
       {children}
     </AuthContext.Provider>
   )

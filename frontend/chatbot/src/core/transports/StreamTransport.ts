@@ -134,7 +134,7 @@ export class StreamTransport implements ChatTransport {
         buffer += decoder.decode(result.value, { stream: true })
 
         // SSE frames are separated by a blank line.
-        const frames = buffer.split('\n\n')
+        const frames = buffer.split(/\r?\n\r?\n/)
         buffer = frames.pop() ?? '' // last (possibly incomplete) frame stays buffered
 
         for (const frame of frames) {

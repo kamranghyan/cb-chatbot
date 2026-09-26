@@ -35,7 +35,11 @@ def _configure_langsmith() -> None:
 async def lifespan(app: FastAPI):
     init_engine()
     init_redis()
-    await warm_load_all()
+    
+    s = get_settings()
+    if s.CAG_WARM_LOAD_ON_STARTUP:
+        await warm_load_all()
+
     yield
     await close_redis()
     await dispose_engine()

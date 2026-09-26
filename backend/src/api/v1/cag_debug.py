@@ -4,6 +4,7 @@ CAG debug endpoints — local-only, same pattern as rag_debug.py.
     POST /api/v1/cag/warm-load               -> re-run warm-load, all tenants
     POST /api/v1/cag/{brand_id}/warm-load     -> re-run for one tenant
     GET  /api/v1/cag/{brand_id}/docs          -> list cached docs + preview
+    GET  /api/v1/cag/{brand_id}/score-debug   -> score debug output for a brand/question
 """
 
 from fastapi import APIRouter
@@ -11,9 +12,13 @@ from fastapi import APIRouter
 from src.config import get_settings
 from src.core.exceptions import NotFoundError
 from src.infrastructure.cache import cag_cache
-from src.services.cag_service import select_context
+from src.services.cag_service import (
+    score_debug,
+    select_context,
+    warm_load_all,
+    warm_load_tenant,
+)
 from src.services.context_builder import build_cag_context
-from src.services.cag_service import warm_load_all, warm_load_tenant
 
 router = APIRouter()
 
@@ -54,3 +59,9 @@ async def cag_select(brand_id: str, question: str):
         "matched_docs": list(selected.keys()),
         "context_preview": build_cag_context(selected)[:500],
     }
+
+
+@router.get("/{brand_id}/score-debug")
+async def cag_score_debug(brand_id: str, question: str):
+    _local_only()
+    return await score_debug(question, brand_id)

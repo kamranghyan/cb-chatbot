@@ -38,3 +38,12 @@ export function login(payload: LoginPayload): Promise<TokenResponse> {
 export function refresh(payload: RefreshPayload): Promise<TokenResponse> {
   return postJson('/auth/refresh', { client_type: 'main', ...payload }, 'Session refresh failed.')
 }
+
+export interface DevTokenResponse {
+  access_token: string
+  token_type: string
+}
+
+export function devToken(email: string): Promise<DevTokenResponse> {
+  return postJson('/auth/dev-token', { email }, `No local user '${email}' — run scripts/seed_local.py first.`)
+}

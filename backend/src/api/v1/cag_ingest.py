@@ -4,12 +4,15 @@ Uploads .md directly to the tenant's S3 CAG prefix and refreshes that
 tenant's Redis cache. Does not go through IngestionService/pgvector.
 """
 
+import logging
 from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
 
 from src.core.auth import RequireAdmin
+from src.infrastructure.cache import cag_cache
 from src.rag.ingest.providers.cag_s3 import upload_doc
-from src.services.cag_service import warm_load_tenant
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -25,8 +28,10 @@ async def cag_ingest(brand_id: str, body: CagIngestIn, ctx: RequireAdmin):
     if not body.filename.endswith(".md"):
         body.filename += ".md"
     key = await upload_doc(brand_id, body.filename, body.content)
-    reloaded = await warm_load_tenant(brand_id)
-    return {"s3_key": key, "brand_id": brand_id, "docs_in_cache": reloaded}
+    doc_id = body.filename.removesuffix(".md")
+    await cag_cache.set_doc(brand_id, doc_id, body.content)  # direct write — we already have the content, no need to re-fetch from S3
+    log.info("CAG cache invalidated/updated: %s/%s", brand_id, doc_id)
+    return {"s3_key": key, "brand_id": brand_id, "doc_id": doc_id}
 
 
 @router.post("/{brand_id}/ingest-file")
@@ -38,5 +43,7 @@ async def cag_ingest_file(brand_id: str, ctx: RequireAdmin, file: UploadFile = F
     data = await file.read()
     content = data.decode("utf-8")
     key = await upload_doc(brand_id, filename, content)
-    reloaded = await warm_load_tenant(brand_id)
-    return {"s3_key": key, "brand_id": brand_id, "docs_in_cache": reloaded}
+    doc_id = filename.removesuffix(".md")
+    await cag_cache.set_doc(brand_id, doc_id, content)  # direct write — we already have the content, no need to re-fetch from S3
+    log.info("CAG cache invalidated/updated: %s/%s", brand_id, doc_id)
+    return {"s3_key": key, "brand_id": brand_id, "doc_id": doc_id}  

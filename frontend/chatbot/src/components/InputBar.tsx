@@ -1,12 +1,14 @@
 import React, { useState, KeyboardEvent } from 'react'
+import { MicButton } from './MicButton'
 
 interface InputBarProps {
   placeholder?: string
   disabled?: boolean
+  accessToken?: string // MicButton ke liye accessToken prop pass kar diya
   onSend: (text: string) => void
 }
 
-export function InputBar({ placeholder, disabled, onSend }: InputBarProps) {
+export function InputBar({ placeholder, disabled, accessToken, onSend }: InputBarProps) {
   const [value, setValue] = useState('')
 
   const handleSend = () => {
@@ -33,6 +35,10 @@ export function InputBar({ placeholder, disabled, onSend }: InputBarProps) {
         onKeyDown={handleKeyDown}
         disabled={disabled}
         aria-label="Message input"
+      />
+      <MicButton
+        accessToken={accessToken}
+        onTranscribed={(text) => setValue((prev) => (prev ? prev + ' ' + text : text))}
       />
       <button
         type="button"

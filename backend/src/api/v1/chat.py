@@ -9,6 +9,17 @@ chat UIs ke liye kaafi. WS bi-directional hai — typing indicators, ek hi
 connection pe multi-turn. Dono diye hain, frontend jo chahe use kare.
 """
 
+"""
+Chat routes. Ek hi RagChatService, teen transports:
+    POST /api/v1/chat          -> JSON (Phase 3)
+    POST /api/v1/chat/stream   -> SSE — Server-Sent Events (Phase 4)
+    WS   /api/v1/chat/ws       -> WebSocket (Phase 4)
+
+SSE vs WS kab kya: SSE simple hai (plain HTTP, proxies/ALB friendly) — 90%
+chat UIs ke liye kaafi. WS bi-directional hai — typing indicators, ek hi
+connection pe multi-turn. Dono diye hain, frontend jo chahe use kare.
+"""
+
 import json
 import logging
 from typing import Annotated
@@ -123,10 +134,16 @@ async def rag_chat_ws(websocket: WebSocket, token: str):
                     ):
                         await websocket.send_json(event)
                     await db.commit()
+                except WebSocketDisconnect:
+                    await db.rollback()
+                    raise
                 except Exception as e:
                     await db.rollback()
                     log.exception("WS chat failed")
-                    await websocket.send_json({"event": "error", "data": {"message": str(e)}})
+                    try:
+                        await websocket.send_json({"event": "error", "data": {"message": str(e)}})
+                    except RuntimeError:
+                        pass
     except WebSocketDisconnect:
         log.info("WS client disconnected")
 

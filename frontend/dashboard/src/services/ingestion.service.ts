@@ -14,6 +14,8 @@ import type {
   PresignedUrlPayload,
   PresignedUrlResponse,
   IngestionItem,
+  CagIngestResponse,
+  CagDocsResponse,
 } from '../core/api/types';
 
 export const ingestText = (payload: IngestTextPayload): Promise<ApiResponse<IngestionItem>> =>
@@ -46,3 +48,32 @@ export const getPresignedUrl = (payload: PresignedUrlPayload): Promise<ApiRespon
 
 export const listIngestions = (): Promise<ApiResponse<IngestionItem[]>> =>
   apiClient.get(ENDPOINTS.ingestion.list);
+
+// ============================================================================
+// CAG — deliberately separate functions, not folded into the RAG calls
+// above. Different destination (S3 + Redis, not pgvector), different
+// response shape (CagIngestResponse, not IngestionItem — no chunking/
+// embedding step, so there's no chunk_count/status to report).
+// ============================================================================
+
+export const ingestCagFile = (
+  brandId: string,
+  file: File,
+): Promise<ApiResponse<CagIngestResponse>> => {
+  const form = new FormData();
+  form.append('file', file);
+  return apiClient.post(ENDPOINTS.cag.ingestFile(brandId), form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const ingestCagText = (
+  brandId: string,
+  filename: string,
+  content: string,
+): Promise<ApiResponse<CagIngestResponse>> =>
+  apiClient.post(ENDPOINTS.cag.ingestText(brandId), { filename, content });
+
+/** Local-dev/debug only — cag_debug.py 404s outside AUTH_PROVIDER=local. */
+export const getCagDocs = (brandId: string): Promise<ApiResponse<CagDocsResponse>> =>
+  apiClient.get(ENDPOINTS.cag.docs(brandId));

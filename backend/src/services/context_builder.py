@@ -13,7 +13,7 @@ from src.rag.vectorstore.base import ScoredDocument
 
 log = logging.getLogger(__name__)
 
-MAX_CONTEXT_CHARS = 8000  # rough token-budget guard; tune per model window
+MAX_CONTEXT_CHARS = 3000  # rough token-budget guard; tune per model window
 
 
 def build_rag_context(docs: list[ScoredDocument]) -> str:
@@ -32,18 +32,30 @@ def build_cag_context(selected: dict[str, str]) -> str:
 
 
 def merge(cag_context: str, rag_context: str) -> str:
-    """Labeled, bounded, deduped-by-source combination for RETRIEVAL_OPTION=both."""
-    parts = []
-    if cag_context.strip():
-        parts.append(f"## Prepared / frequently-used context\n{cag_context.strip()}")
-    if rag_context.strip() and rag_context.strip() != "No context found.":
-        parts.append(f"## Retrieved document context\n{rag_context.strip()}")
+    cag = cag_context.strip()
+    rag = rag_context.strip()
+    if rag == "No context found.":
+        rag = ""
 
-    if not parts:
+    if not cag and not rag:
         return "No context found."
 
-    merged = "\n\n".join(parts)
-    if len(merged) > MAX_CONTEXT_CHARS:
-        log.warning("Merged CAG+RAG context truncated (%d -> %d chars)", len(merged), MAX_CONTEXT_CHARS)
-        merged = merged[:MAX_CONTEXT_CHARS] + "\n\n[...truncated]"
-    return merged
+    # Give each section a fair share of the budget instead of letting
+    # whichever comes first (CAG) starve the other on truncation.
+    half = MAX_CONTEXT_CHARS // 2
+    if len(cag) > half and len(rag) > half:
+        cag = cag[:half] + "\n[...truncated]"
+        rag = rag[:half] + "\n[...truncated]"
+    elif len(cag) + len(rag) > MAX_CONTEXT_CHARS:
+        # one side is small — give the other whatever's left over
+        if len(cag) <= half:
+            rag = rag[: MAX_CONTEXT_CHARS - len(cag)] + "\n[...truncated]"
+        else:
+            cag = cag[: MAX_CONTEXT_CHARS - len(rag)] + "\n[...truncated]"
+
+    parts = []
+    if cag:
+        parts.append(f"## Prepared / frequently-used context\n{cag}")
+    if rag:
+        parts.append(f"## Retrieved document context\n{rag}")
+    return "\n\n".join(parts)

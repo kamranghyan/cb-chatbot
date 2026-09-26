@@ -77,8 +77,12 @@ class Settings(BaseSettings):
     ENABLE_DEPARTMENT_FILTER: bool = False
     RETRIEVAL_TOP_K: int = 4
 
-    # ---- CAG (reserved for the next step — not read anywhere yet) ----
-    RETRIEVAL_OPTION: str = "rag"   # rag | cache | both
+    # ---- CAG ----
+    RETRIEVAL_OPTION: str = "rag"          # rag | cache | both
+    CAG_WARM_LOAD_ON_STARTUP: bool = False  # Optional on startup; defaults to False
+
+    # --- Voice / Whisper ----
+    WHISPER_MODEL_SIZE: str = "small"      # tiny | base | small | medium | large
 
     # ---- Bedrock KB path ----
     KNOWLEDGE_BASE_ID: str = ""

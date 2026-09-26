@@ -123,6 +123,23 @@ export interface IngestionItem {
   created_at: string;
 }
 
+// ---- CAG (exact match: src/api/v1/cag_ingest.py + cag_debug.py) ----
+// Separate response shape from RAG's IngestionItem: CAG has no chunking/
+// embedding step and no IngestionMetadata row — it's a direct S3 write +
+// Redis refresh, so the backend returns something much simpler.
+export interface CagIngestResponse {
+  s3_key: string;
+  brand_id: string;
+  docs_in_cache: number;
+}
+
+export interface CagDocsResponse {
+  brand_id: string;
+  doc_count: number;
+  /** Truncated previews (cag_debug.py caps each value at 200 chars). */
+  docs: Record<string, string>;
+}
+
 // ---- Analytics (exact match: src/services/analytics_service.py) ----
 export interface AnalyticsSummary {
   total_chats: number;

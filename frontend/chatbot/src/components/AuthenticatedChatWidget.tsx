@@ -59,7 +59,7 @@ export function AuthenticatedChatWidget({ config }: AuthenticatedChatWidgetProps
             />
 
             {status === 'checking' && <div className="ccw-auth-checking">Loading…</div>}
-            {status === 'unauthenticated' && <AuthPanel initialView="signup" />}
+            {status === 'unauthenticated' && <AuthPanel initialView="login" />}
             {status === 'authenticated' && (
               <ChatBody config={authedConfig} onConnectionStatusChange={setChatConnectionStatus} />
             )}

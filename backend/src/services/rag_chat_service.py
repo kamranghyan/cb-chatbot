@@ -174,8 +174,12 @@ class RagChatService:
         cag_context = ""
 
         if s.RETRIEVAL_OPTION in ("rag", "both"):
+            filters = self._filters_from_ctx(ctx)
+            logging.getLogger(__name__).warning(
+                "RAG DEBUG — query=%r filters=%r", retrieval_query, filters
+            )
             docs = await self.rag.vectorstore.search(
-                retrieval_query, k=s.RETRIEVAL_TOP_K, filters=self._filters_from_ctx(ctx)
+                retrieval_query, k=s.RETRIEVAL_TOP_K, filters=filters
             )
             rag_context = build_rag_context(docs)
 

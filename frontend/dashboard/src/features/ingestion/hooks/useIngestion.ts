@@ -38,3 +38,23 @@ export function useIngestS3() {
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }
+
+// ============================================================================
+// CAG — no shared queryKey with RAG ingestion above (different table
+// entirely, no IngestionMetadata row), so nothing to invalidate there.
+// If a CAG docs list view gets added later, invalidate that query key here.
+// ============================================================================
+
+export function useIngestCagFile() {
+  return useMutation({
+    mutationFn: ({ brandId, file }: { brandId: string; file: File }) =>
+      ingestionService.ingestCagFile(brandId, file),
+  });
+}
+
+export function useIngestCagText() {
+  return useMutation({
+    mutationFn: ({ brandId, filename, content }: { brandId: string; filename: string; content: string }) =>
+      ingestionService.ingestCagText(brandId, filename, content),
+  });
+}

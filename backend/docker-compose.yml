@@ -1,5 +1,7 @@
-# Local stack: app + pgvector Postgres + Redis
+# Local stack: app + pgvector Postgres + Redis + Ollama
 # Old compose mein Postgres tha hi nahi (host pe manual chahiye tha) — ab included.
+# Ollama ab bhi compose ke andar hai — "ollama serve" alag terminal mein
+# chalane ki zaroorat nahi.
 services:
   backend:
     build: .
@@ -16,16 +18,20 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      ollama:
+        condition: service_started
     volumes:
       - ./:/app
       - ~/.aws:/root/.aws:ro
+      - whisper_cache:/root/.cache/huggingface # <-- IMAGE SE ADD KIYA GAYA
+
   postgres:
     image: pgvector/pgvector:pg16
     container_name: rag-postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-ragdb}
+      POSTGRES_USER: \${DB_USER:-postgres}
+      POSTGRES_PASSWORD: \${DB_PASSWORD:-postgres}
+      POSTGRES_DB: \${DB_NAME:-ragdb}
     ports:
       - "5432:5432"
     volumes:
@@ -41,5 +47,42 @@ services:
     ports:
       - "6379:6379"
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rag-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      # Reuses whatever you've already pulled natively on Windows
+      # (C:\Users\<YourUser>\.ollama) instead of re-downloading qwen2.5:3b
+      # + nomic-embed-text into a fresh volume. REPLACE <YourUser> below.
+      #
+      # If you'd rather keep this fully container-isolated and don't mind
+      # a fresh download, comment the line below out and use the named
+      # volume instead:
+      #   - ollama_data:/root/.ollama
+      - C:/Users/pc/.ollama:/root/.ollama
+    restart: unless-stopped
+
+  # One-shot: waits for ollama to be ready, then pulls (idempotent — fast
+  # if the model's already present via the mounted volume above) the two
+  # models the backend needs. Exits once done; safe to re-run on every
+  # `docker compose up`.
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: rag-ollama-init
+    depends_on:
+      - ollama
+    entrypoint: >
+      sh -c "
+        until curl -sf http://ollama:11434/api/tags >/dev/null; do echo waiting for ollama...; sleep 2; done;
+        curl -sf http://ollama:11434/api/pull -d '{\"name\": \"qwen2.5:3b\"}' >/dev/null;
+        curl -sf http://ollama:11434/api/pull -d '{\"name\": \"nomic-embed-text:latest\"}' >/dev/null;
+        echo models ready
+      "
+    restart: "no"
+
 volumes:
   pgdata:
+  ollama_data:
+  whisper_cache: # <-- IMAGE SE ADD KIYA GAYA

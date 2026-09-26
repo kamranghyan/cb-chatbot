@@ -25,7 +25,7 @@ export const ENDPOINTS = {
   },
 
   chat: {
-    root: `${V1}/chat`,                                      // POST — JSON chat
+    root: `${V1}/chat`,                                       // POST — JSON chat
     stream: `${V1}/chat/stream`,                              // POST — SSE
     ws: (token: string) => `${V1}/chat/ws?token=${encodeURIComponent(token)}`,
     list: `${V1}/chat/list`,                                  // GET — user's chats
@@ -40,6 +40,17 @@ export const ENDPOINTS = {
     s3: `${V1}/ingestion/s3`,                                 // POST (admin)
     presignedUrl: `${V1}/ingestion/presigned-url`,            // POST (admin)
     list: `${V1}/ingestion/list`,                             // GET (admin)
+  },
+
+  /**
+   * CAG (Cache-Augmented Generation) — separate from RAG ingestion above.
+   * Uploads .md straight to S3 (clients/{brand_id}/cag/) and refreshes that
+   * tenant's Redis cache. See src/api/v1/cag_ingest.py + cag_debug.py.
+   */
+  cag: {
+    ingestFile: (brandId: string) => `${V1}/cag/${encodeURIComponent(brandId)}/ingest-file`, // POST multipart (admin)
+    ingestText: (brandId: string) => `${V1}/cag/${encodeURIComponent(brandId)}/ingest`,      // POST JSON (admin)
+    docs: (brandId: string) => `${V1}/cag/${encodeURIComponent(brandId)}/docs`,              // GET (debug/local-only)
   },
 
   analytics: {

@@ -110,7 +110,8 @@ function SignupView({
 }
 
 function LoginView({ onSwitchToSignup }: { onSwitchToSignup: () => void }) {
-  const { login } = useAuth()
+  const { login, loginDev } = useAuth()
+  const [devMode, setDevMode] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -121,12 +122,11 @@ function LoginView({ onSwitchToSignup }: { onSwitchToSignup: () => void }) {
     setError(null)
     setLoading(true)
     try {
-      await login(email, password)
-      // No navigation call needed here at all: AuthenticatedChatWidget
-      // reacts to the shared AuthContext's `status` flipping to
-      // 'authenticated' and swaps this panel for the chat view in the
-      // SAME window on its very next render — same component tree,
-      // same open/close state, zero reload.
+      if (devMode) {
+        await loginDev(email)
+      } else {
+        await login(email, password)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Incorrect email or password.')
     } finally {
@@ -137,21 +137,30 @@ function LoginView({ onSwitchToSignup }: { onSwitchToSignup: () => void }) {
   return (
     <div className="ccw-auth-panel">
       <h3 className="ccw-auth-title">Sign in</h3>
-      <p className="ccw-auth-subtitle">Welcome back — sign in to continue.</p>
+      <p className="ccw-auth-subtitle">
+        {devMode ? 'Local dev — sign in with just an email.' : 'Welcome back — sign in to continue.'}
+      </p>
       {error && <div className="ccw-auth-error" role="alert">{error}</div>}
       <form className="ccw-auth-form" onSubmit={handleSubmit}>
         <div className="ccw-auth-field">
           <label htmlFor="ccw-login-email">Email</label>
           <input id="ccw-login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
         </div>
-        <div className="ccw-auth-field">
-          <label htmlFor="ccw-login-password">Password</label>
-          <input id="ccw-login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
-        </div>
+        {!devMode && (
+          <div className="ccw-auth-field">
+            <label htmlFor="ccw-login-password">Password</label>
+            <input id="ccw-login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+          </div>
+        )}
         <button type="submit" className="ccw-auth-submit" disabled={loading}>
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+      <div className="ccw-auth-switch">
+        <button type="button" onClick={() => setDevMode((v) => !v)}>
+          {devMode ? '← Use real login' : 'Local dev? Sign in with email only'}
+        </button>
+      </div>
       <div className="ccw-auth-switch">
         Don&apos;t have an account? <button type="button" onClick={onSwitchToSignup}>Create one</button>
       </div>
